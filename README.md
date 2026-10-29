@@ -1,10 +1,12 @@
 # Mont CLI Developer Preview
 
-`mont` is a native command-line tool for Mont project workspaces: JSON edits,
-original-asset registration, validation, history, explicit synchronization, and
-relocatable offline bundles. It is **not a video renderer**: bundle export does
-not produce MP4, and the preview does not provide Flutter/mobile cloud
-roundtrips.
+`mont` is a native command-line surface for Mont SDK project workspaces:
+native JSON edits, media ingestion, MP4 rendering, validation, history, explicit
+synchronization, and relocatable offline bundles. Version **0.1.0-preview.2**
+adds `import` and `render`; the earlier **0.1.0-preview.1 binary does not**.
+Rendering requires separately installed FFmpeg/ffprobe and a usable native GPU.
+Bundle export remains a project directory, not an MP4. Flutter/mobile cloud
+roundtrips are not provided.
 
 ## Availability and rights
 
@@ -28,10 +30,13 @@ An ad-hoc seal does not make an internal artifact suitable for public release.
 
 No Rust toolchain, SDK, repository checkout, or build dependencies are needed.
 Use an ARM64 Mac; Intel macOS, Linux, and Windows are not preview targets.
-Python 3 is needed only for the bundled example, not for `mont` itself.
+Python 3 is needed only for the bundled examples, not for `mont` itself.
+For video/audio import and MP4 rendering, install FFmpeg and ffprobe separately
+(`brew install ffmpeg`); their executables are not bundled with Mont.
 
-The signed, Apple-notarized [0.1.0-preview.1 release](https://github.com/usemont/mont-cli/releases/tag/v0.1.0-preview.1)
-is available under Nauchu AB's proprietary preview terms. For manual installation:
+Signed, Apple-notarized assets are published in the
+[official releases](https://github.com/usemont/mont-cli/releases)
+under Nauchu AB's proprietary preview terms. For manual installation:
 
 1. Download its `darwin-arm64.tar.gz`, `SHA256SUMS`, and `release.json` from the
    same release. Do not substitute an `unsigned` archive.
@@ -62,9 +67,13 @@ Alternatively, install the same release from the official Homebrew tap:
 
 ```sh
 brew install usemont/tap/mont
+# If an earlier Mont preview is already installed:
+brew update
+brew upgrade usemont/tap/mont
 ```
 
-The tap installs the same signed ARM64 binary package, not private Mont source.
+The tap installs the same signed ARM64 binary package, not private Mont source,
+and declares FFmpeg as a separate Homebrew dependency.
 
 ## Support and contributions
 
@@ -93,6 +102,40 @@ identity, metadata, original bytes, and history. All writes and deletions are
 inside its own temporary directory, which is removed afterward. It requires
 no account, network, Rust, repository, media decoder, or renderer.
 
+For an editable video project, revision, portable bundle, and actual MP4 renders:
+
+```sh
+python3 example/video_workflow.py --mont ./bin/mont \
+  --output /absolute/new/directory/video-proof
+# Homebrew installs the examples under $(brew --prefix)/share/mont/example/.
+```
+
+This requires Python 3, FFmpeg/ffprobe, and a usable native GPU. It creates an
+original synthetic terminal replay of actual CLI commands, not a desktop capture.
+It checks initial/revised media timing, a native overlay edit, decoded frames,
+and rendering a relocated bundle while the original workspace and recording are
+unavailable. The new output directory retains seven MP4s, decoded proof images,
+editable projects, command transcripts, and `report.json`.
+Measured FFmpeg comparison timings are not a performance advantage claim.
+
+## Friend usability check
+
+After installing, confirm `mont --version` reports `mont 0.1.0-preview.2`, then:
+
+```sh
+python3 "$(brew --prefix)/share/mont/example/video_workflow.py" \
+  --mont "$(brew --prefix mont)/bin/mont" \
+  --output "$HOME/Downloads/mont-video-proof-001"
+```
+
+Use a new output directory. Watch the initial/revised MP4s, inspect the retained
+JSON project snapshots and editable CLI workspace, then try importing a short
+clip of your own. Report installation friction,
+whether the revision/portable project made sense, time to a usable MP4, and exact
+failures. Redact credentials and private paths; share media/projects only with
+permission. A friend completing this is usability evidence, not acquisition or
+independent demand.
+
 ## Private maintainer source builds
 
 This section is for maintainers with access to the private monorepo, not an
@@ -108,20 +151,37 @@ make mont-cli run ARGS='--help'
 make mont-cli install
 ```
 
-The Makefile uses Rust 1.91.0 and limits build concurrency. A native C/C++ build
-toolchain is required by SDK dependencies. `install` puts `mont` in Cargo's binary
-directory. Git is optional and only required by `init --git`.
+The Makefile uses Rust 1.91.0 and limits build concurrency. Source builds require
+Xcode's native C/C++ toolchain, CMake, pkg-config, and Protocol Buffers tooling.
+Media commands additionally require a usable native GPU adapter and external
+`ffmpeg`/`ffprobe` executables. Rendering uses the existing native timeline/GPU
+renderer and its external FFmpeg encoder. These source build tools are not
+installation requirements for the packaged binary. `install` puts `mont` in
+Cargo's binary directory. Git is optional and only required by `init --git`.
 
-`make mont-cli test` runs real binary subprocess scenarios for every command,
-including authenticated synchronization against an isolated HTTP fixture, then
-the SDK workspace tests. The API's real authentication, authorization, immutable
-blob verification, and compare-and-swap handlers are covered separately:
+`make mont-cli test` runs nine real binary subprocess scenarios covering every
+command, including local video/audio ingestion, rendering, portable recovery,
+failure atomicity, and authenticated synchronization against an isolated HTTP
+fixture. It also runs SDK, native media, release-security, and example checks.
+The API's real authentication, authorization, immutable blob verification, and
+compare-and-swap handlers are covered separately:
 
 ```sh
 make api-server test-unit
 # Focused checkpoint handler check, from projects/api-server:
 go test ./handlers -run TestNativeCheckpoint -count=1
 ```
+
+The [video/revision comparison](example/VIDEO-WORKFLOW.md) exercises Mont against
+FFmpeg with identical input media and revision brief:
+
+```sh
+make mont-cli video-example OUTPUT=/absolute/new/directory/outside/checkout
+```
+
+It creates editable workspaces, initial/revised MP4s, a relocated bundle, command
+transcripts, decoded-frame checks, and measured timings. It is a reproducibility
+check, not evidence of independent demand or a controlled performance benchmark.
 
 ## Private release operator runbook
 
@@ -137,8 +197,24 @@ absolute path and `RELEASE_DIR` to a fresh absolute output directory.
 `make mont-cli package` is the gated signed path. The manual GitHub Actions
 release workflow is dispatch-only on `master`: the default internal job can
 create a private source-repository draft tagged `mont-cli-vVERSION-internal`.
-It is not a public release. Do not create either public distribution repository
-until an approved signed package exists.
+It is not a public release. Public distribution repositories contain only
+approved signed assets and public documentation, never private Mont source.
+
+The video package declares external `ffmpeg` and `ffprobe` runtime executables;
+it does not distribute their binaries or link a non-system FFmpeg/media stack.
+Packaging audits the resolved Cargo/native dependency and embedded-font closure,
+includes applicable third-party license notices and an SBOM, and rejects
+unresolved licenses, private build paths, and non-system linked libraries.
+External-process support does not waive these gates. Never replace preview.1
+assets or publish an unsigned developer build as a released preview.
+
+The audit records each declared SPDX expression and the selected distribution
+license: `OR` elects an allowed alternative; `AND` retains both obligations.
+The private checksum-pinned audit inputs retain original embedded-font OFL
+notices, canonical MIT grants and original source notices for crates missing
+standalone legal files, and the reviewed CC0 declaration/full license for
+`hexf-parse 0.2.1`. These exceptions do not approve changed bytes or other packages.
+Font licenses apply to the unmodified embedded fonts, not to proprietary Mont.
 
 For the public Actions job, configure environment `mont-cli-public` with
 required reviewers. Its secrets are `MONT_CLI_SIGNING_P12_BASE64`,
@@ -184,13 +260,23 @@ unapproved terms, or broader source-repository publishing credentials.
    bundles notices and an SBOM; unresolved licenses block public packaging.
    Source and build inputs are not release assets.
 
+   Optional `--keychain /private/signing.keychain-db` selects the signing
+   identity and notarization profile. macOS still requires that keychain in the
+   user's search list: append it without replacing existing entries or changing
+   the default, then delete only the temporary keychain after release. The
+   packager does not mutate that list. The Makefile equivalent is
+   `SIGNING_KEYCHAIN=/private/signing.keychain-db`.
+
 3. **Acceptance before upload:** run
    `make mont-cli verify-package PACKAGE=/absolute/path/to/archive.tar.gz`
-   from the repository root. It exercises all six existing executable command
-   scenarios with `MONT_TEST_BINARY` pointing to the verified extracted binary,
-   then runs its bundled standalone example with no SDK or Rust on `PATH`.
-   Verify SHA-256 checksums, native architecture, version, Apple signature, and
-   Apple notarization using `codesign -R=notarized --check-notarization`.
+   from the repository root. It exercises all nine executable command scenarios
+   with `MONT_TEST_BINARY` pointing to the verified extracted binary, then runs
+   both bundled examples with isolated HOME/PATH and no SDK or Rust available.
+   Supply `FFMPEG=/absolute/path/to/ffmpeg` and `FFPROBE=/absolute/path/to/ffprobe`
+   if they are not on the operator's normal PATH. The video example decodes and
+   checks initial/revised/portable MP4s; compilation or queued work is not proof.
+   Verify SHA-256 checksums, native architecture, exact version, Apple signature,
+   and notarization using `codesign -R=notarized --check-notarization`.
    `spctl --type execute` assesses app bundles, not this standalone executable;
    see [Apple's testing guidance](https://developer.apple.com/forums/thread/130560).
    Confirm no monorepo/SDK source, credentials, absolute private build paths,
@@ -215,9 +301,9 @@ unapproved terms, or broader source-repository publishing credentials.
    metadata, downloads the public asset without credentials, and requires the
    same SHA-256. It does not invent a URL or digest, publish a tap, or overwrite
    an existing formula. The public workflow publishes the tap update, then
-   runs `brew install usemont/tap/mont` and `brew test usemont/tap/mont`.
-   Publication is not accepted until both pass. No formula is committed here
-   before a real approved public release exists.
+   refreshes the tap and installs, upgrades, or reinstalls the exact release,
+   checks the installed `mont --version`, then runs `brew test usemont/tap/mont`
+   including the video proof. Publication is not accepted until these pass.
 
 `release.py verify --archive` requires the adjacent `release.json` and
 `SHA256SUMS`. It prints a JSON report containing the verified manifest;
@@ -324,6 +410,39 @@ does not decode media or place a clip on the timeline.
 MP4**. All pinned originals must exist and pass hash verification. It refuses
 incomplete/corrupt projects and existing destinations, and publishes the bundle
 only after verification. The bundle can reopen after its source is deleted.
+
+### Media import and MP4 rendering
+
+```sh
+mont -C ./movie --json import ./recording.mp4
+mont -C ./movie --json render --output ./initial.mp4 --fps 30
+# Apply a native user_intent:programmatic_span.replace envelope from revision.json.
+mont -C ./movie --json dispatch ./revision.json
+mont -C ./movie --json render --output ./revised.mp4 --fps 30
+```
+
+`import` decodes a nonempty local video or audio file through SDK media ingestion,
+pins its chunked originals, and appends an editable native span after existing
+spans. Video starts with a centered contain-fit frame. The result includes
+`assetId`, `sourceId`, `spanId`, placement/source timing, dimensions, and native
+`projectRevision`. `asset add` remains registration only.
+
+`render` exports the current native project through the canonical timeline/GPU
+renderer. Its result includes output path, dimensions, duration, frame count,
+frame rate, project revision, and `audio.present`. Embedded video audio and
+audio-only spans follow their source trim, timeline placement, rate, and volume.
+Use an existing parent directory and a **new `.mp4` output filename**; existing
+files are never overwritten. Frame rate must be finite and within 1–240; scene
+dimensions must be positive even integers.
+
+Media source trims and playback rate must agree with the native clip duration.
+Static destination frames and crops are supported; rotated media, animated or
+spatial transforms, external asset bindings, unsupported capabilities, missing
+originals, and renderer-skipped clips fail explicitly rather than producing a
+silently incomplete movie. Rendering holds the workspace lock and verifies pins.
+The portable bundle retains media bytes, so reopening/rendering does not require
+the original import path. The bundled video example contains complete native
+revision JSON; the comparison runbook explains the checks and limitations.
 
 ## Explicit cloud synchronization
 
