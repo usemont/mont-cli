@@ -24,15 +24,14 @@ Internal ARM64 builds have an ad-hoc code seal for native execution only;
 `unsigned` means no trusted Developer ID signature or Apple notarization.
 An ad-hoc seal does not make an internal artifact suitable for public release.
 
-## Install a released binary (when public)
+## Install the released binary
 
 No Rust toolchain, SDK, repository checkout, or build dependencies are needed.
 Use an ARM64 Mac; Intel macOS, Linux, and Windows are not preview targets.
 Python 3 is needed only for the bundled example, not for `mont` itself.
 
-The binary-only release repository is
-[`usemont/mont-cli`](https://github.com/usemont/mont-cli/releases).
-If it has no public releases, distribution has not opened. For an approved release:
+The signed, Apple-notarized [0.1.0-preview.1 release](https://github.com/usemont/mont-cli/releases/tag/v0.1.0-preview.1)
+is available under Nauchu AB's proprietary preview terms. For manual installation:
 
 1. Download its `darwin-arm64.tar.gz`, `SHA256SUMS`, and `release.json` from the
    same release. Do not substitute an `unsigned` archive.
@@ -59,14 +58,21 @@ If it has no public releases, distribution has not opened. For an approved relea
    verification and first launch may need internet access to retrieve that ticket;
    the local workspace workflow is offline after installation.
 
-The Homebrew tap is `usemont/homebrew-tap`. These commands require an
-approved signed release and a published tap:
+Alternatively, install the same release from the official Homebrew tap:
 
 ```sh
 brew install usemont/tap/mont
 ```
 
 The tap installs the same signed ARM64 binary package, not private Mont source.
+
+## Support and contributions
+
+- [Report CLI bugs and feature requests](https://github.com/usemont/mont-cli/issues).
+- [Report vulnerabilities privately](https://github.com/usemont/mont-cli/security/advisories/new);
+  do not include credentials or sensitive project data in public issues.
+- [Contribute original skills and recipes](https://github.com/usemont/skills/blob/main/CONTRIBUTING.md).
+  Those contributions are Apache-2.0; the CLI, SDK, and engine remain proprietary.
 
 ## Standalone example
 
