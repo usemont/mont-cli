@@ -1,0 +1,79 @@
+name: Renew signed Mont APT metadata
+on:
+  schedule:
+    - cron: '23 5 * * 1'
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+concurrency:
+  group: mont-apt-publication
+  cancel-in-progress: false
+jobs:
+  renew:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: gh-pages
+      - name: Verify existing metadata and renew its validity
+        env:
+          ARCHIVE_SIGNING_KEY: ${{ secrets.MONT_APT_SIGNING_KEY }}
+          GNUPGHOME: ${{ runner.temp }}/mont-signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -d -m 0700 "$GNUPGHOME"
+          trap 'gpgconf --kill gpg-agent; rm -rf "$GNUPGHOME"' EXIT
+          printf '%s' "$ARCHIVE_SIGNING_KEY" | gpg --batch --import
+          printf '%s  %s\n' '7e9adab2f69ebb6c2d293d56ed92a00546e86c1b547274188a2c365b6e561729' apt/mont-archive-keyring.gpg | sha256sum --check --status
+          gpgv --keyring "$PWD/apt/mont-archive-keyring.gpg" apt/dists/preview/Release.gpg apt/dists/preview/Release
+          python3 - <<'PY'
+          from datetime import datetime, timedelta, timezone
+          from email.utils import format_datetime
+          import hashlib
+          from pathlib import Path
+          root = Path('apt/dists/preview')
+          path = root / 'Release'
+          text = path.read_text()
+          entries = text.split('SHA256:\n', 1)[1].splitlines()
+          expected = {f'main/binary-{arch}/Packages{suffix}' for arch in ('amd64', 'arm64') for suffix in ('', '.gz')}
+          seen = set()
+          for line in entries:
+              checksum, size, name = line.split()
+              assert name in expected and name not in seen, 'unexpected or duplicate signed index'
+              seen.add(name)
+              data = (root / name).read_bytes()
+              assert len(data) == int(size) and hashlib.sha256(data).hexdigest() == checksum, 'signed index changed'
+          assert seen == expected, 'missing signed index'
+          now = datetime.now(timezone.utc).replace(microsecond=0)
+          dates = {'Date': format_datetime(now, usegmt=True), 'Valid-Until': format_datetime(now + timedelta(days=14), usegmt=True)}
+          assert all(sum(line.startswith(key + ': ') for line in text.splitlines()) == 1 for key in dates), 'ambiguous release dates'
+          path.write_text('\n'.join(f'{key}: {dates[key]}' if (key := line.partition(':')[0]) in dates else line for line in text.splitlines()) + '\n')
+          PY
+          for mode in detach-sign clearsign; do
+            output=Release.gpg
+            if [ "$mode" = clearsign ]; then output=InRelease; fi
+            gpg --batch --yes --armor --digest-algo SHA256 --local-user 0B68A80F5ACD90F631F8BEA961E6F5B061DE5189 --output "apt/dists/preview/$output" "--$mode" apt/dists/preview/Release
+          done
+          gpgv --keyring "$PWD/apt/mont-archive-keyring.gpg" apt/dists/preview/InRelease
+      - name: Commit renewed metadata
+        run: |
+          git config user.name 'Mont Release'
+          git config user.email 'nauchu.info@gmail.com'
+          git add apt/dists/preview/Release apt/dists/preview/Release.gpg apt/dists/preview/InRelease
+          git diff --cached --quiet || git commit -m 'chore(apt): renew signed preview metadata'
+          git push origin HEAD:gh-pages
+      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
+        with:
+          path: .
+  deploy:
+    needs: renew
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+        id: deployment
