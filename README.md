@@ -2,24 +2,28 @@
 
 `mont` is a native command-line surface for Mont SDK project workspaces:
 native JSON edits, media ingestion, MP4 rendering, validation, history, explicit
-synchronization, and relocatable offline bundles. Version **0.1.0-preview.2**
-adds `import` and `render`; the earlier **0.1.0-preview.1 binary does not**.
-Rendering requires separately installed FFmpeg/ffprobe and a usable native GPU.
+synchronization, and relocatable offline bundles. Version **0.1.0-preview.4**
+adds signed Linux packages; macOS remains on **0.1.0-preview.2**. Both expose
+`import` and `render`; the earlier **0.1.0-preview.1 binary does not**.
+Rendering requires separately installed FFmpeg/ffprobe and a supported GPU backend.
 Bundle export remains a project directory, not an MP4. Flutter/mobile cloud
 roundtrips are not provided.
 
 ## Availability and rights
 
-The developer preview is **proprietary, binary-only**, initially for **Apple
-Silicon (ARM64), macOS 14 or newer**. The Mont monorepo and SDK remain private; downloading
-the CLI does not grant access to either or a right to redistribute them.
+The developer preview is **proprietary, binary-only** for **Apple Silicon (ARM64),
+macOS 14 or newer**, and **Debian 12 Linux ARM64/x64 (glibc 2.36)**. The Mont
+monorepo and SDK remain private; downloading the CLI does not grant access to
+either or a right to redistribute them.
 Third-party component licenses and notices accompany the binary separately.
 The approved `TERMS.txt` included in a public release governs use of Mont.
 
-**Public distribution requires** Developer ID Application signing, successful
-Apple notarization, and approved proprietary preview terms. These are release
-gates, not optional installation steps. Unsigned archives are internal evaluation
-artifacts only; do not publish them, add them to a public tap, or treat Apple
+**Public macOS distribution requires** Developer ID Application signing,
+successful Apple notarization, and approved proprietary preview terms. Public
+Linux archives and APT metadata require the independently pinned Nauchu AB
+OpenPGP archive key and the same approved terms. These are release gates.
+Unsigned archives are internal evaluation artifacts only; do not publish them,
+add them to public package repositories, or treat Apple
 Development/Distribution signing as Developer ID signing. Never remove quarantine
 attributes, disable Gatekeeper, or instruct users to bypass a security warning.
 Internal ARM64 builds have an ad-hoc code seal for native execution only;
@@ -29,13 +33,15 @@ An ad-hoc seal does not make an internal artifact suitable for public release.
 ## Install the released binary
 
 No Rust toolchain, SDK, repository checkout, or build dependencies are needed.
-Use an ARM64 Mac; Intel macOS, Linux, and Windows are not preview targets.
+Intel macOS, Alpine/musl, and Windows are not public preview targets.
 Python 3 is needed only for the bundled examples, not for `mont` itself.
-For video/audio import and MP4 rendering, install FFmpeg and ffprobe separately
-(`brew install ffmpeg`); their executables are not bundled with Mont.
+For video/audio import and MP4 rendering, FFmpeg and ffprobe are separate
+dependencies, not bundled executables. Homebrew and APT install them.
+
+### macOS
 
 Signed, Apple-notarized assets are published in the
-[official releases](https://github.com/usemont/mont-cli/releases)
+[macOS preview.2 release](https://github.com/usemont/mont-cli/releases/tag/v0.1.0-preview.2)
 under Nauchu AB's proprietary preview terms. For manual installation:
 
 1. Download its `darwin-arm64.tar.gz`, `SHA256SUMS`, and `release.json` from the
@@ -75,6 +81,63 @@ brew upgrade usemont/tap/mont
 The tap installs the same signed ARM64 binary package, not private Mont source,
 and declares FFmpeg as a separate Homebrew dependency.
 
+### Linux: signed APT preview channel
+
+Debian 12 ARM64 and amd64 are the accepted baseline. A Vulkan driver is required;
+the package includes a Mesa software-driver dependency for CPU-only machines.
+Emulated x64 and software rendering establish correctness, not performance.
+
+Run once to register the official repository. The public key download is checked
+against a pinned SHA-256 digest **before** trusting it:
+
+```sh
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl
+(
+  set -eu
+  key="$(mktemp)"
+  trap 'rm -f "$key"' EXIT
+  curl -fsSL https://usemont.github.io/mont-cli/apt/mont-archive-keyring.gpg -o "$key"
+  printf '%s  %s\n' '7e9adab2f69ebb6c2d293d56ed92a00546e86c1b547274188a2c365b6e561729' "$key" |
+    sha256sum --check --status
+  sudo install -m 0644 "$key" /usr/share/keyrings/mont-archive-keyring.gpg
+)
+```
+
+Stop if download or checksum verification fails. The key's primary fingerprint
+is `0B68 A80F 5ACD 90F6 31F8 BEA9 61E6 F5B0 61DE 5189`.
+Then install:
+
+```sh
+printf '%s\n' 'deb [arch=amd64,arm64 signed-by=/usr/share/keyrings/mont-archive-keyring.gpg] https://usemont.github.io/mont-cli/apt preview main' |
+  sudo tee /etc/apt/sources.list.d/mont.list
+sudo apt-get update
+sudo apt-get install mont
+mont --version
+```
+
+Updates use the same signed channel; no reinstall or source checkout:
+
+```sh
+sudo apt-get update
+sudo apt-get install --only-upgrade mont
+```
+
+APT verifies the signed repository metadata and package hashes. Do not use
+`apt-key`, `trusted=yes`, or `--allow-unauthenticated`. The `.deb` installs
+`/usr/bin/mont` and legal notices, SBOM, provenance, and editable-project examples
+under `/usr/share/mont/`; it does not modify user workspaces. This application-data
+location preserves examples and terms on minimal Debian images that strip
+`/usr/share/doc`. Uninstall with
+`sudo apt-get remove mont`. Existing internal `mont-cli-internal` packages must
+be removed first; they are not the public update channel.
+
+The [release assets](https://github.com/usemont/mont-cli/releases/tag/v0.1.0-preview.4)
+also provide Linux archives. Each architecture has its own `release.json`,
+`SHA256SUMS`, and detached OpenPGP signature, published with architecture-prefixed
+filenames to avoid collisions. APT is the recommended installation path.
+
+
 ## Support and contributions
 
 - [Report CLI bugs and feature requests](https://github.com/usemont/mont-cli/issues).
@@ -110,7 +173,7 @@ python3 example/video_workflow.py --mont ./bin/mont \
 # Homebrew installs the examples under $(brew --prefix)/share/mont/example/.
 ```
 
-This requires Python 3, FFmpeg/ffprobe, and a usable native GPU. It creates an
+This requires Python 3, FFmpeg/ffprobe, and a GPU backend (Mesa software Vulkan is accepted on Linux). It creates an
 original synthetic terminal replay of actual CLI commands, not a desktop capture.
 It checks initial/revised media timing, a native overlay edit, decoded frames,
 and rendering a relocated bundle while the original workspace and recording are
@@ -120,12 +183,21 @@ Measured FFmpeg comparison timings are not a performance advantage claim.
 
 ## Friend usability check
 
-After installing, confirm `mont --version` reports `mont 0.1.0-preview.2`, then:
+After installing, confirm `mont --version` reports `mont 0.1.0-preview.2` on
+macOS or `mont 0.1.0-preview.4` on Linux. On macOS:
 
 ```sh
 python3 "$(brew --prefix)/share/mont/example/video_workflow.py" \
   --mont "$(brew --prefix mont)/bin/mont" \
   --output "$HOME/Downloads/mont-video-proof-001"
+```
+
+On Linux:
+
+```sh
+sudo apt-get install python3
+python3 /usr/share/mont/example/video_workflow.py \
+  --mont /usr/bin/mont --output "$HOME/mont-video-proof-001"
 ```
 
 Use a new output directory. Watch the initial/revised MP4s, inspect the retained
@@ -152,12 +224,14 @@ make mont-cli install
 ```
 
 The Makefile uses Rust 1.91.0 and limits build concurrency. Source builds require
-Xcode's native C/C++ toolchain, CMake, pkg-config, and Protocol Buffers tooling.
-Media commands additionally require a usable native GPU adapter and external
-`ffmpeg`/`ffprobe` executables. Rendering uses the existing native timeline/GPU
-renderer and its external FFmpeg encoder. These source build tools are not
-installation requirements for the packaged binary. `install` puts `mont` in
-Cargo's binary directory. Git is optional and only required by `init --git`.
+a native C/C++ toolchain: Xcode Command Line Tools on macOS, a compiler plus
+pkg-config/OpenSSL development headers on Linux, or Visual Studio C++ Build Tools
+and the Windows SDK on Windows. Release tooling additionally requires Python
+3.11+. Media commands require a working Metal, Vulkan, or Direct3D 12 backend and
+external `ffmpeg`/`ffprobe` executables. Rendering uses the existing native
+timeline/GPU renderer and its external FFmpeg encoder. These source build tools
+are not installation requirements for the packaged binary. `install` puts
+`mont` in Cargo's binary directory. Git is optional except for `init --git`.
 
 `make mont-cli test` runs nine real binary subprocess scenarios covering every
 command, including local video/audio ingestion, rendering, portable recovery,
@@ -183,10 +257,95 @@ It creates editable workspaces, initial/revised MP4s, a relocated bundle, comman
 transcripts, decoded-frame checks, and measured timings. It is a reproducibility
 check, not evidence of independent demand or a controlled performance benchmark.
 
+### Private Linux and Windows candidates
+
+Linux ARM64/x64 (glibc) supports signed public and unsigned internal packaging.
+Windows x64 remains internal-only. A Windows ARM64 host may run the x64 executable through Windows
+emulation; this is not a native Windows ARM64 release. Alpine/musl and native
+Windows ARM64 are unsupported. Linux candidates use Debian 12 (glibc 2.36) as
+the acceptance baseline and require OpenSSL 3 runtime libraries plus a working
+Vulkan loader/driver; older distributions are not accepted. Windows acceptance
+uses Windows 11 with its OS-serviced `D3DCompiler_47.dll` and requires a working
+Direct3D 12 adapter; no SDK compiler DLL is bundled. Linux acceptance can use
+Mesa software Vulkan; emulated/software-rendered results are correctness
+evidence, not hardware performance claims.
+
+From the repository root on the target OS:
+
+```sh
+make mont-cli release-build-internal
+make mont-cli package-native-internal RELEASE_DIR=/absolute/private/output
+```
+
+Use an x64 Visual Studio Developer environment on Windows. GNU Make is optional;
+when using it, Python must be available as `python3`. The Windows build uses
+static CRT linkage and remaps Rust/C++ source paths, including Windows-normalized
+path casing so Cargo's lowercased UNC paths cannot leak into the executable.
+Internal archives are named
+`mont-VERSION-{linux-arm64,linux-x64,windows-x64}-unsigned-internal.tar.gz`.
+They include a target-specific dependency audit, SBOM and third-party notices.
+Linux audits allow only system runtimes and the selected architecture's glibc
+loader; custom interpreters and runtime search paths are rejected.
+Unsigned candidates are not public downloads, Homebrew/winget packages, or an
+update channel. `--require-signed` rejects every unsigned candidate.
+
+From `projects/mont-cli`, verify the actual archive with Python 3.11+:
+
+```sh
+python3 tool/verify_package.py --archive /absolute/private/archive.tar.gz \
+  --ffmpeg /absolute/external/ffmpeg --ffprobe /absolute/external/ffprobe
+```
+
+On Windows, use `python` and the external `.exe` paths in PowerShell. The harness
+verifies/extracts the archive, runs all nine command scenarios against its
+executable, then runs both shipped examples with an isolated home and restricted
+runtime PATH. No Windows symlink privilege is required. Packaging verification
+alone never executes an unsigned archive; execution is an explicit private
+acceptance step.
+
+Debian 12 also has an **internal-only** native package. Build it on the matching
+Linux architecture from an already verified archive:
+
+```sh
+make mont-cli debian-internal PACKAGE=/absolute/private/archive.tar.gz \
+  DEB_DIR=/absolute/private/debian-output DEB_REVISION=1
+```
+
+`DEB_DIR` must not exist. The output contains a `mont-cli-internal` `.deb` and
+`SHA256SUMS`; verify those checksums against the trusted maintainer's digest
+before installation. From that output directory, for ARM64:
+
+```sh
+sha256sum --check SHA256SUMS
+sudo apt-get install ./mont-cli-internal_0.1.0~preview.2-1_arm64.deb
+```
+
+Use the `amd64` filename for Linux x64. The package installs `/usr/bin/mont`,
+legal notices, SBOM, provenance and both examples under
+`/usr/share/doc/mont-cli-internal/`, with declared FFmpeg, OpenSSL 3 and
+Vulkan/Mesa runtime dependencies. It has no maintainer scripts.
+Install a newer package with the same `apt-get install /absolute/new.deb`
+command; it upgrades the existing installation without touching user workspaces.
+`DEB_REVISION` changes only the Debian packaging revision, not the CLI version.
+This local-file upgrade path is not a public APT repository or automatic update
+channel, and does not grant redistribution permission.
+
+Cross-platform acceptance runs all nine command scenarios without
+`WGPU_BACKEND`. Windows defaults to primary GPU backends, avoiding initialization
+of legacy OpenGL drivers; an explicit `WGPU_BACKEND=gl` still opts into OpenGL.
+
+Windows public distribution remains gated on Nauchu AB publisher enrollment,
+trusted Authenticode signing/timestamping, and signed install/update acceptance.
+Do not disable SmartScreen or execution policies. Foreground segmentation is not
+included in cross-platform acceptance: the upstream Windows TensorFlow Lite
+binary lacks its required exported API. Normal import/edit/render workflows do
+not load it.
+
 ## Private release operator runbook
 
-Release tooling requires Python 3.11+ on an ARM64 Mac. Run `make mont-cli ...`
-from the repository root; run `python3 tool/...` from `projects/mont-cli`.
+Public macOS release tooling requires Python 3.11+ on an ARM64 Mac.
+Run `make mont-cli ...` from the repository root; run `python3 tool/...` from
+`projects/mont-cli`. Linux/Windows candidates use the private targets above.
 Keep CI, source, SDK, build logs, credentials, and unsigned artifacts private.
 Use a tested native binary whose `mont --version` exactly matches `VERSION`;
 the release version and Cargo package version must agree. Set `BINARY` to its
@@ -345,6 +504,65 @@ rechecks Apple trust and the exact packaged terms hash before any GitHub mutatio
 It uploads binary archives, integrity metadata, and documentation only; no SDK
 or monorepo source is uploaded. Released versions are immutable: bump the Cargo
 version for another release rather than replacing published assets.
+
+### Linux public release and APT operations
+
+Linux signing is independent of Apple signing. Keep the dedicated archive secret
+key outside the repository in a restricted `GNUPGHOME`; never publish it.
+The public primary fingerprint is
+`0B68A80F5ACD90F631F8BEA961E6F5B061DE5189`. Pin both trust inputs explicitly:
+
+```sh
+export MONT_CLI_LINUX_SIGNING_FINGERPRINT=0B68A80F5ACD90F631F8BEA961E6F5B061DE5189
+export MONT_CLI_LINUX_KEYRING=/absolute/mont-archive-keyring.gpg
+export MONT_CLI_PREVIEW_TERMS_SHA256=064e9492e4da86f12bc6d5e7dc1e516e91cf883b5d1facd5be48eead2877428d
+make mont-cli release-build-internal
+make mont-cli package-linux ARCHIVE_SIGNING_KEY="$MONT_CLI_LINUX_SIGNING_FINGERPRINT" \
+  APPROVED_TERMS=/absolute/approved-preview-terms.txt RELEASE_DIR=/absolute/new/candidate
+make mont-cli verify-package PACKAGE=/absolute/new/candidate/mont-VERSION-linux-ARCH.tar.gz \
+  REQUIRE_SIGNED=1
+make mont-cli debian PACKAGE=/absolute/new/candidate/mont-VERSION-linux-ARCH.tar.gz \
+  DEB_DIR=/absolute/new/candidate/debian DEB_REVISION=1
+cp /absolute/new/candidate/debian/*.deb /absolute/new/candidate/
+```
+
+Run on each matching Linux architecture with the pinned Rust toolchain and clean
+committed source. The archive contains proprietary terms and audited third-party
+licenses; its manifest and archive digests are covered by `SHA256SUMS.asc`.
+The verifier checks the independently supplied keyring/fingerprint before running
+any extracted executable. Do not substitute a key embedded in a downloaded archive.
+
+Generate APT metadata on Linux with `apt-utils`, `dpkg`, and GnuPG installed:
+
+```sh
+python3 projects/mont-cli/tool/apt_repository.py \
+  --candidate /absolute/arm64/candidate --candidate /absolute/x64/candidate \
+  --output /absolute/new/apt \
+  --signing-key "$MONT_CLI_LINUX_SIGNING_FINGERPRINT" \
+  --keyring "$MONT_CLI_LINUX_KEYRING"
+```
+
+For updates, supply `--previous /absolute/trusted/previous/apt` to retain immutable
+older packages. Metadata expires after 14 days. Install `tool/apt-refresh.yml` as
+`.github/workflows/apt-refresh.yml` on the public repository's default branch,
+store the dedicated armored archive key in its `MONT_APT_SIGNING_KEY` Actions
+secret, and configure GitHub Pages for GitHub Actions deployment. The pinned-action
+workflow authenticates the existing snapshot, renews its dates weekly, re-signs
+and deploys it without changing package payloads; it also supports manual dispatch
+after publishing a new snapshot. Monitor failures and plan archive-key rotation.
+Publish only the generated `apt/` tree on the binary-only `usemont/mont-cli`
+repository's `gh-pages` branch. GitHub Pages serves
+`https://usemont.github.io/mont-cli/apt/`. Never put private monorepo/SDK source
+or signing credentials on that branch.
+
+Create a new immutable GitHub prerelease with the Linux archives, `.deb` files,
+architecture-prefixed manifests/checksums/signatures, and public keyring. Preserve
+existing macOS release assets and Homebrew version. Before publication, exercise
+every command and both shipped examples from each signed archive. After
+publication, use clean Debian 12 ARM64 and amd64 machines to download the HTTPS
+repository, install, render the shipped editable project, and upgrade an installed
+earlier Debian revision while preserving a user workspace. Do not accept a merely
+queued job, successful compilation, or an unauthenticated local install as proof.
 
 
 ## Offline workspace
