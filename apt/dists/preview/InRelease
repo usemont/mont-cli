@@ -1,0 +1,24 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA256
+
+Origin: Nauchu AB Mont
+Label: Nauchu AB Mont
+Suite: preview
+Codename: preview
+Date: Fri, 30 Oct 2026 08:03:47 GMT
+Valid-Until: Fri, 13 Nov 2026 08:03:47 GMT
+Architectures: amd64 arm64
+Components: main
+Description: Mont CLI proprietary developer preview
+SHA256:
+ 81d7f2ba324e4694b72bff8d8359d80d1ebc85c515e7a76e68e62f875d84dd1b              738 main/binary-amd64/Packages
+ b0a3faceb1829b9bad8d8fa44ca45045c869b74f83ecea78e927a70dad733320              523 main/binary-amd64/Packages.gz
+ 8a369d75dec7080c4de10732160aac41382d83fdc36a6fd796a6abfa4634f3a3              738 main/binary-arm64/Packages
+ c795780a58b26a6bc93c71aa026152fdc6ebe0eb51782e7d55f2927c6415bab7              522 main/binary-arm64/Packages.gz
+-----BEGIN PGP SIGNATURE-----
+
+iHUEARYIAB0WIQQLaKgPWs2Q9jH4vqlh5vWwYd5RiQUCauRPYwAKCRBh5vWwYd5R
+ibJuAQDyy2gkxVp6el9oaEc73MTwtIk6OumSRyFHH59YGR8xywEA37QWJtxbyLRJ
+SaQx49T56PPft++vSWpsd/ZrYWN9DwE=
+=G28f
+-----END PGP SIGNATURE-----
