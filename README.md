@@ -246,7 +246,7 @@ make api-server test-unit
 go test ./handlers -run TestNativeCheckpoint -count=1
 ```
 
-The [video/revision comparison](example/VIDEO-WORKFLOW.md) exercises Mont against
+The bundled `example/VIDEO-WORKFLOW.md` comparison exercises Mont against
 FFmpeg with identical input media and revision brief:
 
 ```sh
