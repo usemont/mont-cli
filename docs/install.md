@@ -1,17 +1,24 @@
 # Install Mont CLI
 
-Install **0.1.0-preview.9** on macOS for `mont templates list`, `mont templates show NAME`, and `mont templates preview NAME [--inputs FILE]`. Published workflows use `mont workflows list`, `show`, and `run`; local run history uses `mont workflows runs`. No Rust toolchain, SDK, or source checkout is needed.
+Install **0.1.0-preview.10** on macOS to create projects from templates, edit them locally in your browser, and export MP4s from the browser or CLI. No Rust toolchain, SDK, or source checkout is needed.
 
 Mont CLI is proprietary software from Nauchu AB. The release's `TERMS.txt` governs use; third-party licenses and notices accompany the binary.
 
 FFmpeg and ffprobe are separate dependencies for video/audio import and MP4 rendering. Homebrew and APT install them; manual archive users must install them separately. Intel macOS and Alpine/musl are not supported preview targets.
+
+Releases that bundle `editor/` can launch the existing Flutter web editor with
+`mont edit`, without installing Flutter or checking out source. Keep `editor/`
+beside `bin/` when using an extracted archive. Homebrew installs it under
+`share/mont/editor`; Debian packages use `/usr/share/mont/editor`. Older archives
+without editor assets remain verifiable and installable, but do not provide the
+bundled editor. `MONT_EDITOR_DIR` can point to a development web build.
 
 ## macOS
 
 Apple Silicon (ARM64), macOS 14 or newer.
 
 Download the signed, Apple-notarized package from the
-[preview.9 release](https://github.com/usemont/mont-cli/releases/tag/v0.1.0-preview.9)
+[preview.10 release](https://github.com/usemont/mont-cli/releases/tag/v0.1.0-preview.10)
 under Nauchu AB's proprietary preview terms. For manual installation:
 
 1. Download its `darwin-arm64.tar.gz`, `SHA256SUMS`, and `release.json` from the
@@ -55,7 +62,7 @@ Never remove quarantine attributes, disable Gatekeeper, or bypass a security war
 
 ## Linux
 
-Linux remains on preview.8; the current TSX-only template catalog requires macOS preview.9.
+Linux remains on preview.8; local template creation and browser editing require macOS preview.10.
 
 ### Signed APT preview channel
 
