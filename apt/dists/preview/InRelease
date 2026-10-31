@@ -5,8 +5,8 @@ Origin: Nauchu AB Mont
 Label: Nauchu AB Mont
 Suite: preview
 Codename: preview
-Date: Sat, 31 Oct 2026 14:01:30 GMT
-Valid-Until: Sat, 14 Nov 2026 14:01:30 GMT
+Date: Sat, 31 Oct 2026 14:04:47 GMT
+Valid-Until: Sat, 14 Nov 2026 14:04:47 GMT
 Architectures: amd64 arm64
 Components: main
 Description: Mont CLI proprietary developer preview
@@ -17,8 +17,8 @@ SHA256:
  be2cc542afe25f0b130845d380e2492cdd48155596b95c0880a2bfd2f1c7fb93             1087 main/binary-arm64/Packages.gz
 -----BEGIN PGP SIGNATURE-----
 
-iHUEARYIAB0WIQQLaKgPWs2Q9jH4vqlh5vWwYd5RiQUCauX0ugAKCRBh5vWwYd5R
-iWHXAQDmagH7O72Aq4OyAA7zKuMimi3zVA7W+55TCZxjwQFwkQD/daFOAfBKC4vZ
-h2yyDWUs4j84bqL29V1t9Y6jLdZhHgQ=
-=0B41
+iHUEARYIAB0WIQQLaKgPWs2Q9jH4vqlh5vWwYd5RiQUCauX1fwAKCRBh5vWwYd5R
+idmYAQCrethE/kEmwRvOKfz4gaOuL6wLsn6bVMpYvv+O+outFAEA1LjJd0SLrgnr
+d+m961TD3rM2BVyMsCjwr9b7GUb9jgo=
+=yIdc
 -----END PGP SIGNATURE-----
