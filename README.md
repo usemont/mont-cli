@@ -15,8 +15,9 @@ Native Mont renders · editable projects + MP4 output · landscape, portrait, an
 ## Try a template
 
 ```sh
-# install
+# install (MacOS)
 brew install usemont/tap/mont
+
 # discover templates, inspect declared inputs, generate a native preview
 mont templates list
 mont templates show stretch-row-repeater
