@@ -25,14 +25,24 @@ mont templates show stretch-row-repeater
 mont templates preview stretch-row-repeater
 ```
 
-Use **0.1.0-preview.9** or newer for these templates. Each preview creates
-an MP4 and editable project under `out/<name>/`; repeat runs use a new numbered
-directory. Customize with `mont templates preview NAME --inputs settings.json`.
-Bare template-name commands are not accepted.
+Use **0.1.0-preview.10** or newer. Customize with
+`mont templates preview NAME --inputs settings.json`.
 
 **Linux:** [signed APT preview](docs/install.md#linux); TSX-only templates require the macOS release for now.
 [More templates](https://github.com/usemont/workflows#readme) · [Installation and updates](docs/install.md).
 Windows is not available.
+
+## Edit locally
+
+```sh
+mont templates create stretch-row-repeater ./my-video
+mont edit ./my-video
+# Export from the browser, or:
+mont -C ./my-video render --output ./my-video.mp4
+```
+
+The bundled web editor saves scene inputs back to TSX and project edits to the
+local workspace. Keep the command running while editing.
 
 ## Published workflows and local runs
 
