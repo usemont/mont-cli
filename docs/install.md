@@ -1,6 +1,6 @@
 # Install Mont CLI
 
-Install **0.1.0-preview.7** for `mont <template-name>` previews. No Rust toolchain, SDK, or source checkout is needed.
+Install **0.1.0-preview.8** for `mont templates list`, `mont templates show NAME`, and `mont templates preview NAME [--inputs FILE]`. Published workflows use `mont workflows list`, `show`, and `run`; local run history uses `mont workflows runs`. No Rust toolchain, SDK, or source checkout is needed. Bare template-name commands and the singular `workflow` hierarchy are not accepted.
 
 Mont CLI is proprietary software from Nauchu AB. The release's `TERMS.txt` governs use; third-party licenses and notices accompany the binary.
 
@@ -10,8 +10,8 @@ FFmpeg and ffprobe are separate dependencies for video/audio import and MP4 rend
 
 Apple Silicon (ARM64), macOS 14 or newer.
 
-Signed, Apple-notarized assets are published in the
-[preview.7 release](https://github.com/usemont/mont-cli/releases/tag/v0.1.0-preview.7)
+Download the signed, Apple-notarized package from the
+[preview.8 release](https://github.com/usemont/mont-cli/releases/tag/v0.1.0-preview.8)
 under Nauchu AB's proprietary preview terms. For manual installation:
 
 1. Download its `darwin-arm64.tar.gz`, `SHA256SUMS`, and `release.json` from the
@@ -106,14 +106,14 @@ location preserves examples and terms on minimal Debian images that strip
 `sudo apt-get remove mont`. Existing internal `mont-cli-internal` packages must
 be removed first; they are not the public update channel.
 
-The [release assets](https://github.com/usemont/mont-cli/releases/tag/v0.1.0-preview.7)
+The [release assets](https://github.com/usemont/mont-cli/releases/tag/v0.1.0-preview.8)
 also provide Linux archives. Each architecture has its own `release.json`,
 `SHA256SUMS`, and detached OpenPGP signature, published with architecture-prefixed
 filenames to avoid collisions. APT is the recommended installation path.
 
 ### Manual archive trust verification
 
-Use the architecture-matched Linux archive and its matching architecture-prefixed `release.json`, `SHA256SUMS`, and `SHA256SUMS.asc` from the same [preview.7 release](https://github.com/usemont/mont-cli/releases/tag/v0.1.0-preview.7). Do not substitute an unsigned archive.
+Use the architecture-matched Linux archive and its matching architecture-prefixed `release.json`, `SHA256SUMS`, and `SHA256SUMS.asc` from the same [preview.8 release](https://github.com/usemont/mont-cli/releases/tag/v0.1.0-preview.8). Do not substitute an unsigned archive.
 
 Before extracting or running anything, obtain the public keyring independently using the pinned download and digest check above. Verify its primary fingerprint against `0B68 A80F 5ACD 90F6 31F8 BEA9 61E6 F5B0 61DE 5189`; do not trust a key embedded in the archive. Use GnuPG to verify the detached OpenPGP signature over the matching checksum file with that keyring, then verify the archive and manifest hashes against that authenticated checksum file. Stop on any signature, fingerprint, or checksum failure. A checksum alone does not establish trusted origin.
 
