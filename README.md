@@ -2,9 +2,10 @@
 
 `mont` is a native command-line surface for Mont SDK project workspaces:
 native JSON edits, media ingestion, MP4 rendering, validation, history, explicit
-synchronization, and relocatable offline bundles. Version **0.1.0-preview.4**
-adds signed Linux packages; macOS remains on **0.1.0-preview.2**. Both expose
-`import` and `render`; the earlier **0.1.0-preview.1 binary does not**.
+synchronization, and relocatable offline bundles. **0.1.0-preview.5** adds shared
+SDK workflows, provider-backed explainer orchestration, Mont-only examples, and
+responsive native kinetic templates. Earlier Linux **preview.4** and macOS
+**preview.2** do not support `workflow`; **preview.1** also lacks import/render.
 Rendering requires separately installed FFmpeg/ffprobe and a supported GPU backend.
 Bundle export remains a project directory, not an MP4. Flutter/mobile cloud
 roundtrips are not provided.
@@ -34,14 +35,14 @@ An ad-hoc seal does not make an internal artifact suitable for public release.
 
 No Rust toolchain, SDK, repository checkout, or build dependencies are needed.
 Intel macOS, Alpine/musl, and Windows are not public preview targets.
-Python 3 is needed only for the bundled examples, not for `mont` itself.
+The next release's typed workflow recipes run through `mont` itself; no Python is required.
 For video/audio import and MP4 rendering, FFmpeg and ffprobe are separate
 dependencies, not bundled executables. Homebrew and APT install them.
 
 ### macOS
 
 Signed, Apple-notarized assets are published in the
-[macOS preview.2 release](https://github.com/usemont/mont-cli/releases/tag/v0.1.0-preview.2)
+[preview.5 release](https://github.com/usemont/mont-cli/releases/tag/v0.1.0-preview.5)
 under Nauchu AB's proprietary preview terms. For manual installation:
 
 1. Download its `darwin-arm64.tar.gz`, `SHA256SUMS`, and `release.json` from the
@@ -132,7 +133,7 @@ location preserves examples and terms on minimal Debian images that strip
 `sudo apt-get remove mont`. Existing internal `mont-cli-internal` packages must
 be removed first; they are not the public update channel.
 
-The [release assets](https://github.com/usemont/mont-cli/releases/tag/v0.1.0-preview.4)
+The [release assets](https://github.com/usemont/mont-cli/releases/tag/v0.1.0-preview.5)
 also provide Linux archives. Each architecture has its own `release.json`,
 `SHA256SUMS`, and detached OpenPGP signature, published with architecture-prefixed
 filenames to avoid collisions. APT is the recommended installation path.
@@ -146,67 +147,118 @@ filenames to avoid collisions. APT is the recommended installation path.
 - [Contribute original skills and recipes](https://github.com/usemont/skills/blob/main/CONTRIBUTING.md).
   Those contributions are Apache-2.0; the CLI, SDK, and engine remain proprietary.
 
-## Standalone example
+Workflows and reusable native templates are published together in
+[usemont/workflows](https://github.com/usemont/workflows). The three kinetic
+templates support landscape (16:9), portrait (9:16), and square (1:1) canvases;
+their editable workspaces and MP4s are generated entirely by `mont workflow`.
+Agent instructions stay in [usemont/skills](https://github.com/usemont/skills);
+the proprietary CLI/SDK source is not part of either collection. The explainer
+collection retains its experimental visual-fidelity warnings; this binary release
+does not certify pixel identity with the original HTML themes.
 
-From the extracted package:
+## Standalone native workflows
 
-```sh
-python3 example/workflow.py --mont ./bin/mont
-# With mont installed on PATH:
-python3 example/workflow.py
-# An explicit binary can also be selected with MONT=/absolute/path/to/mont.
-```
+These commands require preview.5 or newer. Upgrade an older public installation
+before running `mont workflow`.
 
-The standard-library-only script creates a temporary workspace, dispatches
-native title and metadata edits, generates and registers an original 1×1 PNG,
-validates, exports a relocatable bundle, deletes its own source workspace and
-original, then reopens, checks, and edits the bundle. It asserts project
-identity, metadata, original bytes, and history. All writes and deletions are
-inside its own temporary directory, which is removed afterward. It requires
-no account, network, Rust, repository, media decoder, or renderer.
-
-For an editable video project, revision, portable bundle, and actual MP4 renders:
+From an extracted package, run the typed project recipe with a fresh output base:
 
 ```sh
-python3 example/video_workflow.py --mont ./bin/mont \
-  --output /absolute/new/directory/video-proof
-# Homebrew installs the examples under $(brew --prefix)/share/mont/example/.
+./bin/mont -C "$HOME/mont-project-proof" workflow run example/workflow.mont.json
 ```
 
-This requires Python 3, FFmpeg/ffprobe, and a GPU backend (Mesa software Vulkan is accepted on Linux). It creates an
-original synthetic terminal replay of actual CLI commands, not a desktop capture.
-It checks initial/revised media timing, a native overlay edit, decoded frames,
-and rendering a relocated bundle while the original workspace and recording are
-unavailable. The new output directory retains seven MP4s, decoded proof images,
-editable projects, command transcripts, and `report.json`.
-Measured FFmpeg comparison timings are not a performance advantage claim.
+This dispatches native title and metadata edits, validates, exports
+`project-bundle`, reopens that portable workspace, edits its title, and validates
+again. Both editable workspaces and durable `.mont-workflows` history remain
+under the output base. No account, network, Python, Rust, or repository is needed.
+
+For an original synthetic video, editable project, revision and actual MP4s:
+
+```sh
+./bin/mont -C "$HOME/mont-video-proof" workflow run example/video-workflow.mont.json
+# Optional vertical 9:16 canvas instead of the default 640×360:
+./bin/mont -C "$HOME/mont-video-vertical" workflow run example/video-workflow.mont.json \
+  --inputs example/vertical.inputs.json
+```
+
+Mont creates a six-second silent geometric composition using native shape
+spans and renders `source.mp4`. It imports that original into `video-project`,
+adds native overlays and title edits, renders `original.mp4`, `revised.mp4`
+and `revised-repeat.mp4`, exports `video-bundle`, then renders `bundle.mp4`
+from that editable portable workspace. All paths are relative to the output
+base, not the recipe directory. Use a fresh base for another independent run.
+The video recipe requires external FFmpeg/ffprobe and a GPU backend (Mesa
+software Vulkan is accepted on Linux), but no FFmpeg commands or scripts.
+
+Workflow control stays inside Mont:
+
+```sh
+mont -C "$HOME/mont-video-proof" workflow list
+mont -C "$HOME/mont-video-proof" workflow status RUN_ID
+mont -C "$HOME/mont-video-proof" workflow cancel RUN_ID
+mont -C "$HOME/mont-video-proof" workflow resume RUN_ID
+```
+
+The run command also accepts `--run-id ID`, `--inputs inputs.json`, and
+`--config providers.json`. Resume uses the frozen definition, inputs, and
+configuration; run history persists under `.mont-workflows`. Reusing an ID with
+different content is rejected. `.mont` files contain typed JSON graphs.
+
+### Multi-API explainer collection
+
+The open-source [workflows and templates collection](https://github.com/usemont/workflows)
+is maintained at `projects/mont-workflows` in the private source checkout.
+Its [explainer guide](../mont-workflows/workflows/explainer/README.md) describes
+Markdown input, reusable Clef/Jev/Haiku nodes, voice/transcription configuration,
+themes, and native editable project/MP4 outputs:
+
+```sh
+export OPENROUTER_API_KEY='your-private-key'
+mont -C /absolute/new/output workflow run \
+  /absolute/workflows/workflows/explainer/explainer.mont \
+  --inputs /absolute/inputs.json --config /absolute/providers.json \
+  --run-id explainer-demo
+```
+
+Keep credentials in your local environment or secret manager. Provider config
+uses `credentialEnv`, not inline keys. Endpoint/model/protocol settings are
+explicit; speech adapters also declare the response format. PCM16 adapters need
+sample rate/channel metadata from the response or explicit configuration.
+Never commit credentials, `.mont-workflows`, or provider response journals.
+
+Collection `$asset`/`$json` paths are relative to the top-level definition;
+Markdown, workspace, and output paths are relative to `-C` unless absolute.
+Child workflows and map nodes inherit the same local adapter configuration.
+Completed provider calls are recovered from durable responses, not replayed;
+an unknown paid-call outcome stops rather than retrying blindly.
+Only execute trusted workflows: they can read local inputs and send them to
+configured APIs. This collection requires a supporting preview build and paid
+provider access; the local silent video examples above remain offline.
 
 ## Friend usability check
 
-After installing, confirm `mont --version` reports `mont 0.1.0-preview.2` on
-macOS or `mont 0.1.0-preview.4` on Linux. On macOS:
+Use a build supporting `mont workflow` (older public preview packages may not
+contain these recipes). Homebrew installs recipes under its shared data directory:
 
 ```sh
-python3 "$(brew --prefix)/share/mont/example/video_workflow.py" \
-  --mont "$(brew --prefix mont)/bin/mont" \
-  --output "$HOME/Downloads/mont-video-proof-001"
+mont -C "$HOME/mont-video-proof" workflow run \
+  "$(brew --prefix)/share/mont/example/video-workflow.mont.json"
 ```
 
 On Linux:
 
 ```sh
-sudo apt-get install python3
-python3 /usr/share/mont/example/video_workflow.py \
-  --mont /usr/bin/mont --output "$HOME/mont-video-proof-001"
+mont -C "$HOME/mont-video-proof" workflow run \
+  /usr/share/mont/example/video-workflow.mont.json
 ```
 
-Use a new output directory. Watch the initial/revised MP4s, inspect the retained
-JSON project snapshots and editable CLI workspace, then try importing a short
-clip of your own. Report installation friction,
-whether the revision/portable project made sense, time to a usable MP4, and exact
-failures. Redact credentials and private paths; share media/projects only with
-permission. A friend completing this is usability evidence, not acquisition or
-independent demand.
+Watch the original/revised/bundle MP4s and inspect `video-project/project.json`
+and the editable `video-bundle`. Report installation friction, exact failures,
+and whether the revision and portable project made sense. Redact credentials
+and private paths; share media/projects only with permission. This bounded,
+silent shape composition is not a general editor, text/caption demonstration,
+quality benchmark, or performance comparison.
+
 
 ## Private maintainer source builds
 
@@ -246,16 +298,16 @@ make api-server test-unit
 go test ./handlers -run TestNativeCheckpoint -count=1
 ```
 
-The bundled `example/VIDEO-WORKFLOW.md` comparison exercises Mont against
-FFmpeg with identical input media and revision brief:
+The [native video workflow](example/VIDEO-WORKFLOW.md) executes the bundled
+typed recipe through Mont:
 
 ```sh
 make mont-cli video-example OUTPUT=/absolute/new/directory/outside/checkout
 ```
 
-It creates editable workspaces, initial/revised MP4s, a relocated bundle, command
-transcripts, decoded-frame checks, and measured timings. It is a reproducibility
-check, not evidence of independent demand or a controlled performance benchmark.
+It creates original native shape video, editable imported media, revised/repeat
+MP4s and a portable bundle render. It is a reproducibility check, not evidence
+of independent demand or a controlled performance benchmark.
 
 ### Private Linux and Windows candidates
 
