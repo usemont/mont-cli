@@ -1,6 +1,6 @@
 # Install Mont CLI
 
-Install **0.1.0-preview.8** for `mont templates list`, `mont templates show NAME`, and `mont templates preview NAME [--inputs FILE]`. Published workflows use `mont workflows list`, `show`, and `run`; local run history uses `mont workflows runs`. No Rust toolchain, SDK, or source checkout is needed. Bare template-name commands and the singular `workflow` hierarchy are not accepted.
+Install **0.1.0-preview.9** on macOS for `mont templates list`, `mont templates show NAME`, and `mont templates preview NAME [--inputs FILE]`. Published workflows use `mont workflows list`, `show`, and `run`; local run history uses `mont workflows runs`. No Rust toolchain, SDK, or source checkout is needed.
 
 Mont CLI is proprietary software from Nauchu AB. The release's `TERMS.txt` governs use; third-party licenses and notices accompany the binary.
 
@@ -11,7 +11,7 @@ FFmpeg and ffprobe are separate dependencies for video/audio import and MP4 rend
 Apple Silicon (ARM64), macOS 14 or newer.
 
 Download the signed, Apple-notarized package from the
-[preview.8 release](https://github.com/usemont/mont-cli/releases/tag/v0.1.0-preview.8)
+[preview.9 release](https://github.com/usemont/mont-cli/releases/tag/v0.1.0-preview.9)
 under Nauchu AB's proprietary preview terms. For manual installation:
 
 1. Download its `darwin-arm64.tar.gz`, `SHA256SUMS`, and `release.json` from the
@@ -54,6 +54,8 @@ and declares FFmpeg as a separate Homebrew dependency.
 Never remove quarantine attributes, disable Gatekeeper, or bypass a security warning.
 
 ## Linux
+
+Linux remains on preview.8; the current TSX-only template catalog requires macOS preview.9.
 
 ### Signed APT preview channel
 
