@@ -12,25 +12,22 @@ Create editable native video projects and render MP4s from reusable workflows wi
 
 Native Mont renders · editable projects + MP4 output · landscape, portrait, and square templates.
 
-## Install
+## Try a template
 
 **macOS 14+ · Apple Silicon**
 
 ```sh
+# install
 brew install usemont/tap/mont
-# Upgrade an existing installation:
-brew update
-brew upgrade usemont/tap/mont
+# generate preview
+mont stretch-row-repeater
 ```
 
+Try `mont letter-inflate-swell` or `mont spiral-type` next. Each creates an MP4 and editable project under `out/<name>/`; repeat runs use a new numbered directory.
+
 **Linux · Debian 12 arm64 / amd64:** [signed APT installation](docs/install.md#linux).
-Homebrew and APT install FFmpeg/ffprobe for rendering. [Manual installs, trust verification, and updates →](docs/install.md)
+[More templates](https://github.com/usemont/awesome-workflows#readme) · [Installation and updates](docs/install.md).
 Windows is not available.
-
-## Run a template
-
-Use **0.1.0-preview.5** for `mont workflow`; earlier public previews are not compatible.
-Choose a [native template and follow its run instructions →](https://github.com/usemont/awesome-workflows#readme)
 
 [Releases](https://github.com/usemont/mont-cli/releases) · [Report a bug](https://github.com/usemont/mont-cli/issues) · [Security](https://github.com/usemont/mont-cli/security/advisories/new) · [Agent skills](https://github.com/usemont/skills)
 
