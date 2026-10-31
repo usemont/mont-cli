@@ -14,17 +14,23 @@ Native Mont renders · editable projects + MP4 output · landscape, portrait, an
 
 ## Try a template
 
-```sh
-# install (MacOS)
-brew install usemont/tap/mont
+**macOS 14+ · Apple Silicon**
 
+```sh
+# install
+brew install usemont/tap/mont
 # discover templates, inspect declared inputs, generate a native preview
 mont templates list
 mont templates show stretch-row-repeater
 mont templates preview stretch-row-repeater
 ```
 
-**Linux · Debian 12 arm64 / amd64:** [signed APT installation](docs/install.md#linux).
+Use **0.1.0-preview.9** or newer for these templates. Each preview creates
+an MP4 and editable project under `out/<name>/`; repeat runs use a new numbered
+directory. Customize with `mont templates preview NAME --inputs settings.json`.
+Bare template-name commands are not accepted.
+
+**Linux:** [signed APT preview](docs/install.md#linux); TSX-only templates require the macOS release for now.
 [More templates](https://github.com/usemont/workflows#readme) · [Installation and updates](docs/install.md).
 Windows is not available.
 
@@ -47,6 +53,10 @@ A missing local path fails without falling back to the network. See the
 for required inputs and provider endpoint/model/environment-key configuration;
 never place raw API keys in config files.
 
+Catalog discovery and published execution fetch the official repository freshly,
+pin assets to one commit, and fail explicitly when offline. New catalog entries
+require no binary rebuild. Downloaded workflow sources are retained under
+`out/<name>-sources/`; persisted local runs can be inspected/resumed offline.
 
 [Releases](https://github.com/usemont/mont-cli/releases) · [Report a bug](https://github.com/usemont/mont-cli/issues) · [Security](https://github.com/usemont/mont-cli/security/advisories/new) · [Agent skills](https://github.com/usemont/skills)
 
