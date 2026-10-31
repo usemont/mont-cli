@@ -46,3 +46,19 @@ SHA512: 7f22ed57155b54ce4794ed009373567734e59663a218dc848a1a1cf4b1ae6efca1d28e38
 Description: Mont CLI proprietary developer preview
  Approved Developer Preview terms and third-party notices are included.
 
+Package: mont
+Architecture: amd64
+Version: 0.1.0~preview.6-1
+Priority: optional
+Section: video
+Maintainer: Nauchu AB <nauchu.info@gmail.com>
+Depends: ffmpeg, libc6 (>= 2.36), libgcc-s1, libssl3 | libssl3t64, libvulkan1, mesa-vulkan-drivers
+Filename: pool/main/m/mont/mont_0.1.0~preview.6-1_amd64.deb
+Size: 17075740
+MD5sum: 5f6581aa380dec8e29e0f36ec384f1a0
+SHA1: 8d4bf2dce64c9c3ff3c2fcc24bcd9071405a9a8e
+SHA256: 83da66c06234172df6bfc69a77ee1e08d5af98e4098b4bdc1b395635fef91d31
+SHA512: 56e16e1f95657ee063e0aa87c26e54a5222864bd80e406c0c7711ebf256d91745d6b6cb0e36569903d9676c1dfa968e0769660e1103c77bc3bf1f42aaa1ad28a
+Description: Mont CLI proprietary developer preview
+ Approved Developer Preview terms and third-party notices are included.
+
