@@ -44,6 +44,17 @@ mont -C ./my-video render --output ./my-video.mp4
 The bundled web editor saves scene inputs back to TSX and project edits to the
 local workspace. Keep the command running while editing.
 
+## Optional account
+
+```sh
+mont auth login
+mont auth status --json
+mont auth logout
+```
+
+The account icon in `mont edit` shares the CLI session. Local editing and export
+need no account; credentials stay in the operating system's credential store.
+
 ## Published workflows and local runs
 
 ```sh
