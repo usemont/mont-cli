@@ -1,6 +1,6 @@
 # Install Mont CLI
 
-Install **0.1.0-preview.10** on macOS to create projects from templates, edit them locally in your browser, and export MP4s from the browser or CLI. No Rust toolchain, SDK, or source checkout is needed.
+Install **0.1.0-preview.14** on macOS to create projects from templates, edit them locally in your browser, and export MP4s from the browser or CLI. No Rust toolchain, SDK, or source checkout is needed.
 
 Mont CLI is proprietary software from Nauchu AB. The release's `TERMS.txt` governs use; third-party licenses and notices accompany the binary.
 
@@ -18,7 +18,7 @@ bundled editor. `MONT_EDITOR_DIR` can point to a development web build.
 Apple Silicon (ARM64), macOS 14 or newer.
 
 Download the signed, Apple-notarized package from the
-[preview.10 release](https://github.com/usemont/mont-cli/releases/tag/v0.1.0-preview.10)
+[preview.14 release](https://github.com/usemont/mont-cli/releases/tag/v0.1.0-preview.14)
 under Nauchu AB's proprietary preview terms. For manual installation:
 
 1. Download its `darwin-arm64.tar.gz`, `SHA256SUMS`, and `release.json` from the
