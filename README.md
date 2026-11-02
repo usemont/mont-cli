@@ -25,7 +25,7 @@ mont templates show stretch-row-repeater
 mont templates preview stretch-row-repeater
 ```
 
-Use **0.1.0-preview.14** or newer. Customize with
+Use **0.1.0-preview.15** or newer. Customize with
 `mont templates preview NAME --inputs settings.json`.
 
 **Linux:** [signed APT preview](docs/install.md#linux); TSX-only templates require the macOS release for now.
@@ -56,7 +56,6 @@ The account icon in `mont edit` shares the CLI session. Local editing and export
 need no account; credentials stay in the operating system's credential store.
 
 Output is readable by default. Add `--json` for agents, scripts, or `jq`.
-
 ## Published workflows and local runs
 
 ```sh
