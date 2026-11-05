@@ -56,6 +56,7 @@ The account icon in `mont edit` shares the CLI session. Local editing and export
 need no account; credentials stay in the operating system's credential store.
 
 Output is readable by default. Add `--json` for agents, scripts, or `jq`.
+
 ## Published workflows and local runs
 
 ```sh
