@@ -1,3 +1,5 @@
+<p><a href="https://usemont.com"><img src="assets/logo.svg" alt="Mont" width="150" height="40"></a></p>
+
 # Mont CLI
 
 Create editable native video projects and render MP4s from reusable workflows with Mont's command-line video editor.

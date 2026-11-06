@@ -1,0 +1,5 @@
+<svg width="150" height="40" viewBox="0 0 150 40" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Mont">
+  <rect width="40" height="40" rx="12" fill="#FF6B35"/>
+  <path d="M1 8l4-6 2 3 2-3 4 6" transform="translate(9 16) scale(1.5714285714 1.5555555556)" stroke="#160A04" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <text x="52" y="28" font-family="system-ui, -apple-system, sans-serif" font-size="24" font-weight="700" fill="#FF6B35" letter-spacing="-0.02em">mont</text>
+</svg>
