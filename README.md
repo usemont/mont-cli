@@ -1,4 +1,4 @@
-<p><a href="https://usemont.com"><img src="assets/logo.svg" alt="Mont" width="150" height="40"></a></p>
+<p><a href="https://usemont.com"><img src="https://raw.githubusercontent.com/usemont/.github/main/assets/logo.svg" alt="Mont" width="150" height="40"></a></p>
 
 # Mont CLI
 
