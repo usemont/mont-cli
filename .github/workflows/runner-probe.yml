@@ -1,0 +1,139 @@
+name: Mont CLI source-free x64 runner probe
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: mont-cli-source-free-runner-probe
+  cancel-in-progress: false
+jobs:
+  protection-api:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Compare public protection visibility with read-only workflow identity
+        shell: python
+        env:
+          API_TOKEN: ${{ github.token }}
+        run: |
+          import json, os, urllib.error, urllib.request
+          for authenticated in (False, True):
+              for path in ('environments/mont-cli-public', 'environments/mont-cli-public/deployment-branch-policies', 'branches/main/protection'):
+                  headers = {'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28'}
+                  if authenticated:
+                      headers['Authorization'] = 'Bearer ' + os.environ['API_TOKEN']
+                  request = urllib.request.Request('https://api.github.com/repos/usemont/mont-cli/' + path, headers=headers)
+                  try:
+                      with urllib.request.urlopen(request) as response:
+                          body = json.load(response)
+                          print(json.dumps({'authenticated': authenticated, 'path': path, 'status': response.status, 'name': body.get('name'), 'can_admins_bypass': body.get('can_admins_bypass'), 'branch_policies': body.get('branch_policies'), 'message': body.get('message')}))
+                  except urllib.error.HTTPError as error:
+                      print(json.dumps({'authenticated': authenticated, 'path': path, 'status': error.code, 'message': json.load(error).get('message')}))
+  windows-x64:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - node: '22.14.0'
+            npm: '10.9.2'
+          - node: '24.7.0'
+            npm: '11.5.1'
+    steps:
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: ${{ matrix.node }}
+          architecture: x64
+      - name: Verify runtime and native host facts
+        shell: pwsh
+        env:
+          EXPECTED_NODE: ${{ matrix.node }}
+          EXPECTED_NPM: ${{ matrix.npm }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          npm install --global --ignore-scripts "npm@$env:EXPECTED_NPM"
+          if ($LASTEXITCODE -ne 0) { throw 'npm install failed' }
+          if ((node --version) -ne "v$env:EXPECTED_NODE") { throw 'Node mismatch' }
+          if ((npm --version) -ne $env:EXPECTED_NPM) { throw 'npm mismatch' }
+          node -e "console.log(JSON.stringify({node:process.version,arch:process.arch,platform:process.platform,osArch:require('os').arch(),osRelease:require('os').release()}));if(process.arch!=='x64'||process.platform!=='win32')process.exit(1)"
+          if ($LASTEXITCODE -ne 0) { throw 'Native process architecture mismatch' }
+          Get-CimInstance Win32_Processor | Select-Object Name,Architecture,AddressWidth
+          "PROCESSOR_ARCHITECTURE=$env:PROCESSOR_ARCHITECTURE"
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $compiler = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -find 'VC\Tools\MSVC\**\bin\Hostx64\x64\cl.exe' | Select-Object -First 1
+          if (!$compiler) { throw 'Native x64 MSVC compiler absent' }
+          "MSVC=$compiler"
+          & $compiler /Bv 2>&1 | ForEach-Object { "$_" }
+          $global:LASTEXITCODE = 0
+          if (!(Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
+            choco install ffmpeg --yes --no-progress --limit-output
+            if ($LASTEXITCODE -ne 0) { throw 'FFmpeg provisioning failed' }
+            $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')
+          }
+          ffmpeg -version
+          if ($LASTEXITCODE -ne 0) { throw 'FFmpeg unavailable' }
+          ffprobe -version
+          if ($LASTEXITCODE -ne 0) { throw 'ffprobe unavailable' }
+          if ($env:EXPECTED_NODE -eq '24.7.0') {
+            npm install --global --ignore-scripts npm@11.21.0
+            if ($LASTEXITCODE -ne 0 -or (npm --version) -ne '11.21.0') { throw 'Publisher npm unavailable' }
+          }
+  debian12-x64:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - node: '22.14.0'
+            npm: '10.9.2'
+          - node: '24.7.0'
+            npm: '11.5.1'
+    steps:
+      - name: Verify native Debian 12 runtime and tooling
+        shell: bash
+        env:
+          EXPECTED_NODE: ${{ matrix.node }}
+          EXPECTED_NPM: ${{ matrix.npm }}
+        run: |
+          set -euo pipefail
+          uname -a
+          test "$(uname -m)" = x86_64
+          docker info --format 'HostArchitecture={{.Architecture}} OperatingSystem={{.OperatingSystem}}'
+          docker pull --platform linux/amd64 debian:12-slim
+          docker image inspect debian:12-slim --format 'ImageArchitecture={{.Architecture}} RepoDigests={{json .RepoDigests}}'
+          docker run --rm --platform linux/amd64 -e EXPECTED_NODE -e EXPECTED_NPM -i debian:12-slim bash -se <<'PROBE'
+          set -euo pipefail
+          apt-get update -qq
+          apt-get install -y -qq --no-install-recommends ca-certificates curl xz-utils ffmpeg build-essential python3
+          cd /tmp
+          file="node-v${EXPECTED_NODE}-linux-x64.tar.xz"
+          curl --fail --silent --show-error --location "https://nodejs.org/dist/v${EXPECTED_NODE}/${file}" --output "$file"
+          curl --fail --silent --show-error --location "https://nodejs.org/dist/v${EXPECTED_NODE}/SHASUMS256.txt" --output SHASUMS256.txt
+          python3 - "$file" <<'PY'
+          import hashlib, pathlib, sys
+          name = sys.argv[1]
+          rows = [line.split() for line in pathlib.Path('SHASUMS256.txt').read_text().splitlines()]
+          expected = [digest for digest, filename in rows if filename == name]
+          assert len(expected) == 1 and hashlib.sha256(pathlib.Path(name).read_bytes()).hexdigest() == expected[0]
+          PY
+          tar -xJf "$file" -C /usr/local --strip-components=1
+          npm install --global --ignore-scripts "npm@${EXPECTED_NPM}"
+          test "$(node --version)" = "v${EXPECTED_NODE}"
+          test "$(npm --version)" = "$EXPECTED_NPM"
+          test "$(uname -m)" = x86_64
+          test "$(dpkg --print-architecture)" = amd64
+          test "$(getconf GNU_LIBC_VERSION)" = 'glibc 2.36'
+          cat /etc/os-release
+          getconf GNU_LIBC_VERSION
+          node -e "const h=process.report.getReport().header;console.log(JSON.stringify({node:process.version,arch:process.arch,platform:process.platform,glibc:h.glibcVersionRuntime}));if(process.arch!=='x64'||process.platform!=='linux'||h.glibcVersionRuntime!=='2.36')process.exit(1)"
+          cc --version
+          c++ --version
+          ffmpeg -version
+          ffprobe -version
+          if [ "$EXPECTED_NODE" = 24.7.0 ]; then
+            npm install --global --ignore-scripts npm@11.21.0
+            test "$(npm --version)" = 11.21.0
+          fi
+          PROBE
