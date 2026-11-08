@@ -127,3 +127,38 @@ Use the architecture-matched Linux archive and its matching architecture-prefixe
 Before extracting or running anything, obtain the public keyring independently using the pinned download and digest check above. Verify its primary fingerprint against `0B68 A80F 5ACD 90F6 31F8 BEA9 61E6 F5B0 61DE 5189`; do not trust a key embedded in the archive. Use GnuPG to verify the detached OpenPGP signature over the matching checksum file with that keyring, then verify the archive and manifest hashes against that authenticated checksum file. Stop on any signature, fingerprint, or checksum failure. A checksum alone does not establish trusted origin.
 
 Extract into a new directory only after verification. Keep the complete package, including its terms, third-party notices, and SBOM; run `./bin/mont --version` from the extracted directory. Manual archives do not configure an update channel: repeat these checks for every new release, or use signed APT instead.
+
+## Update ownership and multiple installations
+
+Use the installer that owns the installation: Homebrew uses `brew update && brew upgrade usemont/tap/mont`; APT uses the signed-channel update commands above. Manual archives require downloading and verifying a new release. Mont does not provide a self-update command.
+
+**npm/npx distribution is not published yet.** Its update contract is:
+
+The npm target set is Apple Silicon macOS 14+, Windows x64, and Linux x64/ARM64
+with glibc 2.36+ (Debian 12 baseline; not Alpine/musl). Node.js 22+ is required.
+Native Windows and Linux npm acceptance is a release gate, not an availability
+claim. Install optional dependencies: they contain the matching native payload.
+Installation uses no lifecycle scripts or binary downloads outside npm.
+
+Version/help, project creation, and the editor do not require FFmpeg. Media
+commands currently require external `ffmpeg` and `ffprobe`; npm neither bundles
+nor installs codecs, GPU drivers, or hardware-acceleration support.
+Linux also needs the OpenSSL 3 and C++ runtimes. Rendering requires a Vulkan
+loader and driver; Mesa's software driver supports CPU-only machines. Unlike
+APT, npm does not resolve these OS dependencies.
+
+| Installation | Version selection / update |
+| --- | --- |
+| One-off npx | `npx @usemont/cli@preview --version` selects the published preview channel; replace `preview` with an exact version for reproducibility. |
+| Global npm | `npm install -g @usemont/cli@preview` updates that global installation. |
+| Project dependency | Update the explicit dependency and commit its lockfile; use `npm ci` in CI. |
+
+Preview releases use `preview`; `latest` is reserved for accepted stable releases. Bare `npx @usemont/cli` can use a project-local dependency; it is not a guarantee of the newest release. Do not clear npm's cache as an update procedure. npm does not install Mont's external FFmpeg/ffprobe dependency.
+
+Installations remain independent. Plain `mont` follows shell command resolution; inspect `type -a mont` on POSIX or `Get-Command mont -All` in PowerShell, then run `mont --version`. The npm launcher selects its own exact-version platform payload, never another `mont` on `PATH`; a missing payload is an error, not a fallback.
+If global npm and Homebrew share a `bin` directory, do not use npm `--force` to
+replace Homebrew's `mont` link. Use npx or a separate npm prefix instead.
+
+Updating one installation must not uninstall or overwrite another installer's package. The existing optional `mont mcp install` integration is separate: it refreshes the shared, stable user-owned MCP launcher; manual archive and APT users run it explicitly after an upgrade. Homebrew's post-install step provisions it automatically.
+
+An npm/npx rollback selects a previously published exact version. Homebrew rollback requires an available versioned formula or a verified older archive; there is no promised generic downgrade command. Moving a channel tag does not update pinned versions or running processes, and binary rollback does not guarantee an older binary can open a newer project format.

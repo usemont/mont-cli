@@ -1,0 +1,475 @@
+name: Mont CLI artifact-only npm release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Published usemont/mont-cli tag with all four approved signed native archives
+        required: true
+        type: string
+      expected_index_sha256:
+        description: Independently approved SHA256 of the prepared npm index.json
+        required: true
+        type: string
+      expected_evidence_sha256:
+        description: Independently approved canonical digest of eight bound packed acceptance reports
+        required: true
+        type: string
+      promote_preview:
+        description: Request separately approved root preview promotion after registry acceptance
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mont-cli-npm-publication
+  cancel-in-progress: false
+
+# Only public packaging tools from the protected dispatch commit execute. Native
+# release assets and same-run transports are data, never sources of workflow code.
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+  RELEASE_TAG: ${{ inputs.release_tag }}
+  EXPECTED_INDEX_SHA256: ${{ inputs.expected_index_sha256 }}
+  EXPECTED_EVIDENCE_SHA256: ${{ inputs.expected_evidence_sha256 }}
+  MONT_CLI_LINUX_SIGNING_FINGERPRINT: ${{ vars.MONT_CLI_LINUX_SIGNING_FINGERPRINT }}
+  MONT_CLI_WINDOWS_SIGNING_FINGERPRINT: ${{ vars.MONT_CLI_WINDOWS_SIGNING_FINGERPRINT }}
+  MONT_CLI_WINDOWS_PUBLISHER: ${{ vars.MONT_CLI_WINDOWS_PUBLISHER }}
+
+jobs:
+  stage:
+    if: github.repository == 'usemont/mont-cli' && github.ref == 'refs/heads/main'
+    runs-on: macos-15
+    timeout-minutes: 40
+    outputs:
+      version: ${{ steps.stage.outputs.version }}
+      transport-sha256: ${{ steps.transport.outputs.sha256 }}
+    steps:
+      - &checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - &python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - &publishing-node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24.7.0'
+      - &publishing-npm
+        name: Pin packaging and OIDC dist-tag capable publishing client
+        shell: bash
+        run: |
+          npm install --global --ignore-scripts npm@11.21.0
+          test "$(node --version)" = v24.7.0
+          test "$(npm --version)" = 11.21.0
+      - &mac-tools
+        name: Provision Apple native verification and external media
+        if: runner.os == 'macOS'
+        run: |
+          brew list gnupg >/dev/null 2>&1 || brew install gnupg
+          brew list ffmpeg >/dev/null 2>&1 || brew install ffmpeg
+      - &trust
+        name: Provision independently approved public trust (never artifact-provided keys)
+        shell: python
+        env:
+          TERMS_SHA256: ${{ vars.MONT_CLI_PREVIEW_TERMS_SHA256 }}
+          LINUX_KEYRING: ${{ vars.MONT_CLI_LINUX_KEYRING_BASE64 }}
+          WINDOWS_KEYRING: ${{ vars.MONT_CLI_WINDOWS_KEYRING_BASE64 }}
+        run: |
+          import base64, os, re
+          from pathlib import Path
+          for name in ('EXPECTED_INDEX_SHA256', 'EXPECTED_EVIDENCE_SHA256', 'TERMS_SHA256'):
+              if not re.fullmatch(r'[0-9a-f]{64}', os.environ[name]):
+                  raise SystemExit('Independent SHA256 approval missing: ' + name)
+          publisher = os.environ['MONT_CLI_WINDOWS_PUBLISHER']
+          if 'Nauchu AB' not in publisher or any(c in publisher for c in '\r\n'):
+              raise SystemExit('Exact independently approved Nauchu AB Authenticode subject required')
+          for platform in ('LINUX', 'WINDOWS'):
+              if not re.fullmatch(r'[0-9A-F]{40}', os.environ['MONT_CLI_' + platform + '_SIGNING_FINGERPRINT']):
+                  raise SystemExit('Independent full signing fingerprint required: ' + platform)
+              data = base64.b64decode(os.environ[platform + '_KEYRING'], validate=True)
+              if not data:
+                  raise SystemExit('Independent public keyring required: ' + platform)
+              path = Path(os.environ['RUNNER_TEMP']) / (platform.lower() + '-release.gpg')
+              path.write_bytes(data)
+              path.chmod(0o600)
+              with open(os.environ['GITHUB_ENV'], 'a') as out:
+                  out.write('MONT_CLI_' + platform + '_KEYRING=' + str(path) + '\n')
+      - name: Resolve fixed public release and download native assets by immutable IDs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import json, os, re, subprocess
+          from pathlib import Path
+          from urllib.parse import quote
+          def gh(*args):
+              return subprocess.check_output(['gh', 'api', *args])
+          repo = json.loads(gh('repos/usemont/mont-cli'))
+          if repo.get('private') is not False:
+              raise SystemExit('Only the public binary-only release repository is allowed')
+          tag = os.environ['RELEASE_TAG']
+          if not re.fullmatch(r'v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?', tag):
+              raise SystemExit('Explicit native release version tag required')
+          release = json.loads(gh('repos/usemont/mont-cli/releases/tags/' + quote(tag, safe='')))
+          if release.get('draft') or release.get('tag_name') != tag:
+              raise SystemExit('Exact native release must already be published')
+          root = Path(os.environ['RUNNER_TEMP']) / 'native-assets'
+          root.mkdir()
+          targets = {'darwin-arm64': 'aarch64-apple-darwin', 'windows-x64': 'x86_64-pc-windows-msvc',
+                     'linux-x64': 'x86_64-unknown-linux-gnu', 'linux-arm64': 'aarch64-unknown-linux-gnu'}
+          snapshot = []
+          for suffix, target in targets.items():
+              directory = root / suffix
+              directory.mkdir()
+              archives = [a for a in release['assets'] if a['name'] == 'mont-' + tag[1:] + '-' + suffix + '.tar.gz']
+              if len(archives) != 1:
+                  raise SystemExit('Exactly one matching native archive required: ' + suffix)
+              selected = [(archives[0], archives[0]['name'])]
+              for name in ('release.json', 'SHA256SUMS', *(('SHA256SUMS.asc',) if suffix != 'darwin-arm64' else ())):
+                  names = {suffix + '-' + name, suffix + '.' + name}
+                  if suffix == 'darwin-arm64':
+                      names.add(name)
+                  matches = [a for a in release['assets'] if a['name'] in names]
+                  if len(matches) != 1:
+                      raise SystemExit('Absent or ambiguous native sidecar: ' + suffix + '/' + name)
+                  selected.append((matches[0], name))
+              for asset, local in selected:
+                  path = directory / local
+                  with path.open('wb') as destination:
+                      subprocess.run(['gh', 'api', '-H', 'Accept: application/octet-stream',
+                                      'repos/usemont/mont-cli/releases/assets/' + str(asset['id'])],
+                                     stdout=destination, check=True)
+                  snapshot.append({'id': asset['id'], 'name': asset['name'], 'size': path.stat().st_size})
+              manifest = json.loads((directory / 'release.json').read_text())
+              if manifest['target'] != target or manifest['archive'] != archives[0]['name']:
+                  raise SystemExit('Native sidecar target/archive mismatch')
+          (root / 'asset-ids.json').write_text(json.dumps(snapshot, sort_keys=True, indent=2) + '\n')
+          PY
+      - name: Stage coherent four-target archives and require approved immutable index
+        id: stage
+        env:
+          TERMS_SHA256: ${{ vars.MONT_CLI_PREVIEW_TERMS_SHA256 }}
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, shutil, subprocess, sys
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP'])
+          archives = sorted((root / 'native-assets').glob('*/*.tar.gz'))
+          if len(archives) != 4:
+              raise SystemExit('Exactly four native archives required')
+          command = [sys.executable, 'tool/npm_publish.py', 'stage', '--output', str(root / 'npm-candidate'),
+                     '--approved-terms-sha256', os.environ['TERMS_SHA256']]
+          for archive in archives:
+              command += ['--archive', str(archive)]
+          subprocess.run(command, check=True)
+          index = root / 'npm-candidate/index.json'
+          if hashlib.sha256(index.read_bytes()).hexdigest() != os.environ['EXPECTED_INDEX_SHA256']:
+              raise SystemExit('Stage index differs from independent approval; no publication allowed')
+          shutil.copyfile(root / 'native-assets/asset-ids.json', root / 'npm-candidate/asset-ids.json')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              out.write('version=' + json.loads(index.read_text())['version'] + '\n')
+          PY
+      - &transport
+        name: Preserve package modes in data-only transport
+        id: transport
+        shell: python
+        run: |
+          import hashlib, os, tarfile
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP'])
+          path = root / 'npm-candidate.tar'
+          with tarfile.open(path, 'w') as bundle:
+              bundle.add(root / 'npm-candidate', arcname='npm-candidate')
+          with path.open('rb') as source:
+              digest = hashlib.file_digest(source, 'sha256').hexdigest()
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              out.write('sha256=' + digest + '\n')
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: npm-stage-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/npm-candidate.tar
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+
+  packed-native:
+    needs: stage
+    strategy:
+      fail-fast: false
+      matrix: &native-matrix
+        client:
+          - node: '22.14.0'
+            npm: '10.9.2'
+          - node: '24.7.0'
+            npm: '11.5.1'
+        platform:
+          - runner: macos-15
+            target: darwin-arm64
+          - runner: windows-2025
+            target: win32-x64
+          - runner: ubuntu-24.04
+            target: linux-x64
+          - runner: ubuntu-24.04-arm
+            target: linux-arm64
+    runs-on: ${{ matrix.platform.runner }}
+    timeout-minutes: 45
+    env:
+      ACCEPTANCE_MODE: packed
+      TRANSPORT_SHA256: ${{ needs.stage.outputs.transport-sha256 }}
+    steps: &acceptance-steps
+      - *checkout
+      - *python
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ matrix.client.node }}
+      - name: Pin exact native acceptance client
+        shell: bash
+        env:
+          CLIENT_NPM: ${{ matrix.client.npm }}
+          CLIENT_NODE: ${{ matrix.client.node }}
+        run: |
+          npm install --global --ignore-scripts "npm@$CLIENT_NPM"
+          test "$(node --version)" = "v$CLIENT_NODE"
+          test "$(npm --version)" = "$CLIENT_NPM"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: npm-${{ env.ACCEPTANCE_MODE == 'packed' && 'stage' || 'candidate' }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}
+      - &restore
+        name: Restore hash-bound transport without links, traversal, or tooling
+        shell: python
+        run: |
+          import hashlib, os, tarfile
+          from pathlib import Path, PurePosixPath
+          root = Path(os.environ['RUNNER_TEMP'])
+          path = root / 'npm-candidate.tar'
+          with path.open('rb') as source:
+              digest = hashlib.file_digest(source, 'sha256').hexdigest()
+          if digest != os.environ['TRANSPORT_SHA256']:
+              raise SystemExit('Same-run package transport SHA256 differs')
+          with tarfile.open(path) as bundle:
+              for member in bundle.getmembers():
+                  parts = PurePosixPath(member.name)
+                  if (parts.is_absolute() or '..' in parts.parts or not parts.parts
+                          or parts.parts[0] != 'npm-candidate' or not (member.isfile() or member.isdir())):
+                      raise SystemExit('Unsafe package transport member: ' + member.name)
+              bundle.extractall(root, filter='data')
+      - *mac-tools
+      - name: Provision Windows media and independent signature verifier
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install ffmpeg gnupg --yes --no-progress
+          @('C:/Program Files (x86)/GnuPG/bin', 'C:/Program Files/GnuPG/bin', 'C:/Program Files/Git/usr/bin') |
+            Where-Object { Test-Path "$_/gpgv.exe" } | Select-Object -First 1 | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+      - *trust
+      - name: Native Debian 12 acceptance with exact clients (no emulation)
+        if: runner.os == 'Linux'
+        env:
+          CLIENT_NODE: ${{ matrix.client.node }}
+          CLIENT_NPM: ${{ matrix.client.npm }}
+          EXPECTED_TARGET: ${{ matrix.platform.target }}
+        run: |
+          docker run --rm --init \
+            --mount "type=bind,source=$GITHUB_WORKSPACE,target=/workspace,readonly" \
+            --mount "type=bind,source=$RUNNER_TEMP,target=/acceptance" \
+            --workdir /workspace \
+            -e ACCEPTANCE_MODE -e CLIENT_NODE -e CLIENT_NPM -e EXPECTED_TARGET \
+            -e MONT_CLI_LINUX_SIGNING_FINGERPRINT -e MONT_CLI_WINDOWS_SIGNING_FINGERPRINT \
+            -e MONT_CLI_LINUX_KEYRING=/acceptance/linux-release.gpg \
+            -e MONT_CLI_WINDOWS_KEYRING=/acceptance/windows-release.gpg \
+            "node:$CLIENT_NODE-bookworm" bash -euc '
+              apt-get update
+              apt-get install -y --no-install-recommends python3 procps ffmpeg libvulkan1 mesa-vulkan-drivers binutils gpgv
+              npm install --global --ignore-scripts "npm@$CLIENT_NPM"
+              test "$(node --version)" = "v$CLIENT_NODE"
+              test "$(npm --version)" = "$CLIENT_NPM"
+              test "$(node -p "process.platform.concat(String.fromCharCode(45),process.arch)")" = "$EXPECTED_TARGET"
+              test "$(getconf GNU_LIBC_VERSION)" = "glibc 2.36"
+              python3 tool/npm_acceptance.py --mode "$ACCEPTANCE_MODE" \
+                --output /acceptance/npm-candidate --ffmpeg /usr/bin/ffmpeg --ffprobe /usr/bin/ffprobe \
+                --report "/acceptance/$ACCEPTANCE_MODE-$EXPECTED_TARGET-node$CLIENT_NODE.json"
+            '
+      - name: Real native Apple/Windows acceptance with scripts disabled
+        if: runner.os != 'Linux'
+        shell: python
+        env:
+          CLIENT_NODE: ${{ matrix.client.node }}
+          EXPECTED_TARGET: ${{ matrix.platform.target }}
+        run: |
+          import os, shutil, subprocess, sys
+          from pathlib import Path
+          target = subprocess.check_output(['node', '-p', 'process.platform + "-" + process.arch'], text=True).strip()
+          if target != os.environ['EXPECTED_TARGET']:
+              raise SystemExit('Native runner architecture mismatch; emulation is not acceptance')
+          tools = {name: shutil.which(name) for name in ('ffmpeg', 'ffprobe')}
+          if not all(tools.values()) or not shutil.which('gpgv'):
+              raise SystemExit('External media and independent gpgv must be provisioned')
+          root = Path(os.environ['RUNNER_TEMP'])
+          mode = os.environ['ACCEPTANCE_MODE']
+          report = root / (mode + '-' + target + '-node' + os.environ['CLIENT_NODE'] + '.json')
+          subprocess.run([sys.executable, 'tool/npm_acceptance.py', '--mode', mode,
+                          '--output', str(root / 'npm-candidate'), '--ffmpeg', tools['ffmpeg'],
+                          '--ffprobe', tools['ffprobe'], '--report', str(report)], check=True)
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: npm-${{ env.ACCEPTANCE_MODE }}-${{ matrix.platform.target }}-node${{ matrix.client.node }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/${{ env.ACCEPTANCE_MODE }}-${{ matrix.platform.target }}-node${{ matrix.client.node }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  candidate:
+    needs: [stage, packed-native]
+    if: vars.MONT_CLI_NPM_ENABLED == 'true'
+    environment: mont-cli-public
+    permissions:
+      contents: read
+      id-token: write
+    runs-on: macos-15
+    timeout-minutes: 40
+    outputs:
+      transport-sha256: ${{ steps.transport.outputs.sha256 }}
+    env:
+      TRANSPORT_SHA256: ${{ needs.stage.outputs.transport-sha256 }}
+      # Public packaging provenance only; no claim about private native builds.
+      npm_config_provenance: 'true'
+      NODE_AUTH_TOKEN: ''
+      NPM_TOKEN: ''
+    steps:
+      - *checkout
+      - *python
+      - *publishing-node
+      - *publishing-npm
+      - *mac-tools
+      - *trust
+      - &protection
+        name: Require supported reviewer/main protections and explicit enable approval
+        env:
+          GH_TOKEN: ${{ secrets.MONT_RELEASE_PROTECTION_TOKEN }}
+          ENABLED: ${{ vars.MONT_CLI_NPM_ENABLED }}
+        run: |
+          test -n "$GH_TOKEN"
+          test "$ENABLED" = true
+          test "$GITHUB_REPOSITORY" = usemont/mont-cli
+          test "$GITHUB_REF" = refs/heads/main
+          python3 tool/npm_release_gate.py protection --repository usemont/mont-cli \
+            --branch main --environment mont-cli-public --workflow npm-release.yml
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: npm-stage-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}
+      - *restore
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: npm-packed-*-node*-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/packed-reports
+          merge-multiple: true
+      - name: Require complete independently approved packed evidence before any registry write
+        run: |
+          python3 tool/npm_release_gate.py verify --output "$RUNNER_TEMP/npm-candidate" \
+            --reports "$RUNNER_TEMP/packed-reports" --mode packed \
+            --expected-index-sha256 "$EXPECTED_INDEX_SHA256" --expected-evidence-sha256 "$EXPECTED_EVIDENCE_SHA256"
+      - name: OIDC publish exact accepted tarballs under candidate-VERSION only
+        env:
+          VERSION: ${{ needs.stage.outputs.version }}
+        run: |
+          python3 tool/npm_publish.py candidate --prepared-output "$RUNNER_TEMP/npm-candidate" --tag "candidate-$VERSION"
+      - *transport
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: npm-candidate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/npm-candidate.tar
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 30
+
+  registry-native:
+    needs: [stage, candidate]
+    strategy:
+      fail-fast: false
+      matrix: *native-matrix
+    runs-on: ${{ matrix.platform.runner }}
+    timeout-minutes: 45
+    env:
+      ACCEPTANCE_MODE: registry
+      TRANSPORT_SHA256: ${{ needs.candidate.outputs.transport-sha256 }}
+    steps: *acceptance-steps
+
+  registry-evidence:
+    needs: registry-native
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      sha256: ${{ steps.digest.outputs.sha256 }}
+    steps:
+      - *checkout
+      - *python
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: npm-registry-*-node*-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/registry-reports
+          merge-multiple: true
+      - name: Bind same-run registry report bytes for protected promotion
+        id: digest
+        shell: python
+        run: |
+          import json, os, subprocess, sys
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP']) / 'registry-reports'
+          digest = json.loads(subprocess.check_output(
+              [sys.executable, 'tool/npm_release_gate.py', 'evidence-digest', '--reports', str(root)],
+              text=True))
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              out.write('sha256=' + digest + '\n')
+
+  promote-preview:
+    needs: [stage, candidate, packed-native, registry-native, registry-evidence]
+    if: inputs.promote_preview && vars.MONT_CLI_NPM_ENABLED == 'true'
+    environment: mont-cli-public
+    permissions:
+      contents: read
+      id-token: write
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      TRANSPORT_SHA256: ${{ needs.candidate.outputs.transport-sha256 }}
+      NODE_AUTH_TOKEN: ''
+      NPM_TOKEN: ''
+    steps:
+      - *checkout
+      - *python
+      - *publishing-node
+      - *publishing-npm
+      - *mac-tools
+      - *trust
+      - *protection
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: npm-candidate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}
+      - *restore
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: npm-registry-*-node*-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/registry-reports
+          merge-multiple: true
+      - name: Require all eight bound registry results before explicit channel movement
+        env:
+          REGISTRY_EVIDENCE_SHA256: ${{ needs.registry-evidence.outputs.sha256 }}
+        run: |
+          python3 tool/npm_release_gate.py verify --output "$RUNNER_TEMP/npm-candidate" \
+            --reports "$RUNNER_TEMP/registry-reports" --mode registry \
+            --expected-index-sha256 "$EXPECTED_INDEX_SHA256" --expected-evidence-sha256 "$REGISTRY_EVIDENCE_SHA256"
+      - name: Reverify signed archives and immutable candidate; advance root preview only
+        env:
+          VERSION: ${{ needs.stage.outputs.version }}
+        run: |
+          python3 tool/npm_publish.py promote --output "$RUNNER_TEMP/npm-candidate" \
+            --candidate-tag "candidate-$VERSION" --channel preview
