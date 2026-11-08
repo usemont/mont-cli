@@ -350,7 +350,7 @@ jobs:
       - *mac-tools
       - *trust
       - &protection
-        name: Require supported reviewer/main protections and explicit enable approval
+        name: Require maintainer approval, main protections and explicit enable approval
         env:
           GH_TOKEN: ${{ secrets.MONT_RELEASE_PROTECTION_TOKEN }}
           ENABLED: ${{ vars.MONT_CLI_NPM_ENABLED }}

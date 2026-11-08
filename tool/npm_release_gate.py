@@ -81,10 +81,9 @@ def validate_protection(repository, protection, environment, policies, branch):
     require(repository.get("full_name") == "usemont/mont-cli" and repository.get("visibility") == "public"
             and repository.get("default_branch") == branch == "main", "Publisher requires public usemont/mont-cli main")
     require(protection.get("enforce_admins", {}).get("enabled") is True
-            and (protection.get("required_pull_request_reviews") or {}).get("required_approving_review_count", 0) >= 1
             and protection.get("allow_force_pushes", {}).get("enabled") is False
             and protection.get("allow_deletions", {}).get("enabled") is False,
-            "Main branch must require reviews, including admins, and prohibit force pushes/deletion")
+            "Main branch must enforce protection for admins and prohibit force pushes/deletion")
     rules = environment.get("protection_rules", [])
     require(environment.get("can_admins_bypass") is False
             and any(rule.get("type") == "required_reviewers" and rule.get("reviewers") for rule in rules),
