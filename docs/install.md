@@ -96,8 +96,8 @@ npm exec --offline -- mont --version
 
 The default (`latest`) channel currently selects `0.1.0-preview.17`, as
 explicitly authorized for this initial release. It is a preview, not an accepted
-stable release. The separate `preview` tag still awaits npm authorization;
-use the verified bare or exact-version commands above meanwhile.
+stable release. The `preview` tag also selects `0.1.0-preview.17`:
+`npx --yes usemont@preview templates preview morph-text`.
 Exact project dependencies and lockfiles remain pinned.
 
 ### Migrating an existing scoped npm install
@@ -206,7 +206,7 @@ machines. Unlike APT, npm does not resolve these OS dependencies.
 | Global npm | `npm install -g --prefix "$HOME/.local/mont-npm" usemont@0.1.0-preview.17` selects that version for the global installation. |
 | Project dependency | Update the explicit dependency and commit its lockfile; use `npm ci` in CI. |
 
-Normal prerelease promotion uses `preview`; stable promotion uses `latest`. This initial `usemont` publication has an owner-authorized default-channel exception: `latest` selects preview.17 without claiming stable acceptance. The separate `preview` tag is not yet available. Bare `npx usemont` can use a project-local dependency; it is not a guarantee of the newest release. Do not clear npm's cache as an update procedure. npm does not install Mont's external FFmpeg/ffprobe dependency.
+Normal prerelease promotion uses `preview`; stable promotion uses `latest`. This initial `usemont` publication has an owner-authorized default-channel exception: both `latest` and `preview` select preview.17 without claiming stable acceptance. Bare `npx usemont` can use a project-local dependency; it is not a guarantee of the newest release. Do not clear npm's cache as an update procedure. npm does not install Mont's external FFmpeg/ffprobe dependency.
 
 Installations remain independent. Plain `mont` follows shell command resolution; inspect `type -a mont` on POSIX or `Get-Command mont -All` in PowerShell, then run `mont --version`. The npm launcher selects its own exact-version platform payload, never another `mont` on `PATH`; a missing payload is an error, not a fallback.
 If global npm and Homebrew share a `bin` directory, do not use npm `--force` to
