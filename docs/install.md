@@ -1,6 +1,6 @@
 # Install Mont CLI
 
-Mont CLI creates projects from templates, edits them locally in your browser, and exports MP4s from the browser or CLI. No Rust toolchain, SDK, or source checkout is needed. The npm release below is **0.1.0-preview.17**; archive and Homebrew channels are independent.
+Mont CLI creates projects from templates, edits them locally in your browser, and exports MP4s from the browser or CLI. No Rust toolchain, SDK, or source checkout is needed. The public npm entry point is `usemont`, currently **0.1.0-preview.17** on macOS; archive and Homebrew channels are independent.
 
 Mont CLI is proprietary software from Nauchu AB. The release's `TERMS.txt` governs use; third-party licenses and notices accompany the binary.
 
@@ -49,10 +49,10 @@ under Nauchu AB's proprietary preview terms. For manual installation:
 Alternatively, install from the official Homebrew tap, whose release channel is independent of npm:
 
 ```sh
-brew install usemont/tap/mont
+brew install usemont/tap/usemont
 # If an earlier Mont preview is already installed:
 brew update
-brew upgrade usemont/tap/mont
+brew upgrade usemont/tap/usemont
 ```
 
 The tap installs the same signed ARM64 binary package, not private Mont source,
@@ -62,13 +62,16 @@ Never remove quarantine attributes, disable Gatekeeper, or bypass a security war
 
 ### npm / npx
 
-**0.1.0-preview.17** supports Apple Silicon, macOS 14+, and Node.js 22+.
-Native registry checks passed with Node 22.14.0/npm 10.9.2 and Node
-24.7.0/npm 11.5.1. Windows, Linux and Intel macOS npm payloads are not published.
+`usemont@0.1.0-preview.17` supports Apple Silicon, macOS 14+, and Node.js 22+.
+Fresh native registry acceptance passed with Node 22.14.0/npm 10.9.2 and
+Node 24.7.0/npm 11.5.1, including codec-free `morph-text` preview.
+Windows, Linux and Intel macOS npm payloads are not published.
+No Homebrew CLI installation is required.
 
 ```sh
-npx --yes --ignore-scripts @usemont/cli@0.1.0-preview.17 --version
-npx --yes --ignore-scripts @usemont/cli@0.1.0-preview.17 --help
+npx usemont templates preview morph-text
+# Exact version for reproducible CI:
+npx --yes usemont@0.1.0-preview.17 templates preview morph-text
 ```
 
 Keep optional dependencies enabled: npm selects the exact native payload.
@@ -80,27 +83,36 @@ native GPU backend. For example, install the codecs with `brew install ffmpeg`.
 For a global installation without replacing Homebrew's executable:
 
 ```sh
-npm install --global --prefix "$HOME/.local/mont-npm" --ignore-scripts @usemont/cli@0.1.0-preview.17
+npm install --global --prefix "$HOME/.local/mont-npm" --ignore-scripts usemont@0.1.0-preview.17
 "$HOME/.local/mont-npm/bin/mont" --version
 ```
 
 For an exact project dependency, commit both `package.json` and its lockfile:
 
 ```sh
-npm install --save-dev --save-exact --ignore-scripts @usemont/cli@0.1.0-preview.17
+npm install --save-dev --save-exact --ignore-scripts usemont@0.1.0-preview.17
 npm exec --offline -- mont --version
 ```
 
-To select the accepted preview channel instead of an immutable version:
+The default (`latest`) channel currently selects `0.1.0-preview.17`, as
+explicitly authorized for this initial release. It is a preview, not an accepted
+stable release. The separate `preview` tag still awaits npm authorization;
+use the verified bare or exact-version commands above meanwhile.
+Exact project dependencies and lockfiles remain pinned.
 
-```sh
-npx --yes --ignore-scripts @usemont/cli@preview --version
-```
+### Migrating an existing scoped npm install
 
-`preview` currently selects `0.1.0-preview.17`. npm automatically assigned this
-first prerelease to `latest`; the owner approved retaining that bootstrap
-assignment until the first accepted stable release. Future previews use `preview`.
-Exact project dependencies and their lockfiles remain pinned after channel changes.
+`@usemont/cli` is no longer the active root; already published versions remain
+immutable. Native payload names such as `@usemont/cli-darwin-arm64` do not change,
+and the executable remains `mont`. No installer automatically removes or replaces
+your existing scoped install.
+
+For a project, explicitly run `npm uninstall --save-dev @usemont/cli`, then the
+exact `npm install --save-dev` command above, and commit `package.json` and its
+lockfile. Existing projects stay pinned until explicitly migrated. For a global
+install, use the same original `--prefix` when explicitly uninstalling
+`@usemont/cli`, then install `usemont` in that prefix. Do not remove another
+installer's `mont` link or use `--force`.
 
 ## Linux
 
@@ -172,9 +184,9 @@ Extract into a new directory only after verification. Keep the complete package,
 
 ## Update ownership and multiple installations
 
-Use the installer that owns the installation: Homebrew uses `brew update && brew upgrade usemont/tap/mont`; APT uses the signed-channel update commands above. Manual archives require downloading and verifying a new release. Mont does not provide a self-update command.
+Use the installer that owns the installation: Homebrew uses `brew update && brew upgrade usemont/tap/usemont`; APT uses the signed-channel update commands above. Manual archives require downloading and verifying a new release. Mont does not provide a self-update command. The Homebrew formula name is `usemont`, while its executable remains `mont`.
 
-**npm/npx is published for Apple Silicon macOS 14+ only**, with Node.js 22+.
+**npm/npx supports Apple Silicon macOS 14+ only**, with Node.js 22+.
 Windows x64 and Linux x64/ARM64 with glibc 2.36+ (Debian 12 baseline) remain
 planned npm targets, not published availability. Intel macOS and Alpine/musl
 are not supported. Native Windows and Linux npm acceptance remains a release gate.
@@ -190,11 +202,11 @@ machines. Unlike APT, npm does not resolve these OS dependencies.
 
 | Installation | Version selection / update |
 | --- | --- |
-| One-off npx | `npx @usemont/cli@preview --version` selects the published preview channel; replace `preview` with an exact version for reproducibility. |
-| Global npm | `npm install -g --prefix "$HOME/.local/mont-npm" @usemont/cli@preview` updates that scoped global installation. |
+| One-off npx | `npx usemont templates preview morph-text` uses the default channel; use an exact version for reproducibility. |
+| Global npm | `npm install -g --prefix "$HOME/.local/mont-npm" usemont@0.1.0-preview.17` selects that version for the global installation. |
 | Project dependency | Update the explicit dependency and commit its lockfile; use `npm ci` in CI. |
 
-Preview releases use `preview`; `latest` is reserved for accepted stable releases apart from the documented first-publication bootstrap exception above. Bare `npx @usemont/cli` can use a project-local dependency; it is not a guarantee of the newest release. Do not clear npm's cache as an update procedure. npm does not install Mont's external FFmpeg/ffprobe dependency.
+Normal prerelease promotion uses `preview`; stable promotion uses `latest`. This initial `usemont` publication has an owner-authorized default-channel exception: `latest` selects preview.17 without claiming stable acceptance. The separate `preview` tag is not yet available. Bare `npx usemont` can use a project-local dependency; it is not a guarantee of the newest release. Do not clear npm's cache as an update procedure. npm does not install Mont's external FFmpeg/ffprobe dependency.
 
 Installations remain independent. Plain `mont` follows shell command resolution; inspect `type -a mont` on POSIX or `Get-Command mont -All` in PowerShell, then run `mont --version`. The npm launcher selects its own exact-version platform payload, never another `mont` on `PATH`; a missing payload is an error, not a fallback.
 If global npm and Homebrew share a `bin` directory, do not use npm `--force` to
