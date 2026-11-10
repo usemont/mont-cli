@@ -16,30 +16,24 @@ Native Mont renders · editable projects + MP4 output · landscape, portrait, an
 
 ## Try a template
 
-**macOS 14+ · Apple Silicon**
+**macOS 14+ · Apple Silicon · Node.js 22+**
 
 ```sh
-# install
-brew install usemont/tap/mont
-# discover templates, inspect declared inputs, generate a native preview
-mont templates list
-mont templates show stretch-row-repeater
-mont templates preview stretch-row-repeater
+npx usemont templates preview morph-text
+# Reproducible CI:
+npx --yes usemont@0.1.0-preview.17 templates preview morph-text
 ```
 
-Use **0.1.0-preview.15** or newer. Customize with
-`mont templates preview NAME --inputs settings.json`.
+No Homebrew CLI install is required. Preview and the bundled editor need no
+FFmpeg; media import/rendering still need external FFmpeg/ffprobe.
+Keep npm optional dependencies enabled.
 
-Or run the **0.1.0-preview.17** npm release with Node.js 22+:
+The default npm channel currently selects `0.1.0-preview.17`, a preview release,
+not a stable release. Pin an exact version for reproducible CI.
 
-```sh
-npx --yes --ignore-scripts @usemont/cli@0.1.0-preview.17 --help
-```
-
-macOS ARM64 only. Keep optional dependencies enabled; media import/rendering
-still require separately installed FFmpeg/ffprobe. `@usemont/cli@preview` also
-selects this accepted release; exact versions remain pinned across channel changes.
-npm and Homebrew update independently.
+Alternatively, `brew install usemont/tap/usemont` installs the native `mont`
+executable. npm and Homebrew update independently. Existing `@usemont/cli`
+installs require explicit package-name migration; project lockfiles stay pinned.
 
 **Linux:** [signed APT preview](https://github.com/usemont/mont-cli/blob/main/docs/install.md#linux); TSX-only templates require the macOS release for now.
 [More templates](https://github.com/usemont/workflows#readme) · [Installation and updates](https://github.com/usemont/mont-cli/blob/main/docs/install.md).
