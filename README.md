@@ -30,8 +30,19 @@ mont templates preview stretch-row-repeater
 Use **0.1.0-preview.15** or newer. Customize with
 `mont templates preview NAME --inputs settings.json`.
 
-**Linux:** [signed APT preview](docs/install.md#linux); TSX-only templates require the macOS release for now.
-[More templates](https://github.com/usemont/workflows#readme) · [Installation and updates](docs/install.md).
+Or run the **0.1.0-preview.17** npm release with Node.js 22+:
+
+```sh
+npx --yes --ignore-scripts @usemont/cli@0.1.0-preview.17 --help
+```
+
+macOS ARM64 only. Keep optional dependencies enabled; media import/rendering
+still require separately installed FFmpeg/ffprobe. `@usemont/cli@preview` also
+selects this accepted release; exact versions remain pinned across channel changes.
+npm and Homebrew update independently.
+
+**Linux:** [signed APT preview](https://github.com/usemont/mont-cli/blob/main/docs/install.md#linux); TSX-only templates require the macOS release for now.
+[More templates](https://github.com/usemont/workflows#readme) · [Installation and updates](https://github.com/usemont/mont-cli/blob/main/docs/install.md).
 Windows is not available.
 
 ## Edit locally

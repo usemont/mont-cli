@@ -1,10 +1,10 @@
 # Install Mont CLI
 
-Install **0.1.0-preview.15** on macOS to create projects from templates, edit them locally in your browser, and export MP4s from the browser or CLI. No Rust toolchain, SDK, or source checkout is needed.
+Mont CLI creates projects from templates, edits them locally in your browser, and exports MP4s from the browser or CLI. No Rust toolchain, SDK, or source checkout is needed. The npm release below is **0.1.0-preview.17**; archive and Homebrew channels are independent.
 
 Mont CLI is proprietary software from Nauchu AB. The release's `TERMS.txt` governs use; third-party licenses and notices accompany the binary.
 
-FFmpeg and ffprobe are separate dependencies for video/audio import and MP4 rendering. Homebrew and APT install them; manual archive users must install them separately. Intel macOS and Alpine/musl are not supported preview targets.
+FFmpeg and ffprobe are separate dependencies for video/audio import and MP4 rendering. Homebrew and APT install them; npm/npx and manual archive users must install them separately. Intel macOS and Alpine/musl are not supported preview targets.
 
 Releases that bundle `editor/` can launch the existing Flutter web editor with
 `mont edit`, without installing Flutter or checking out source. Keep `editor/`
@@ -46,7 +46,7 @@ under Nauchu AB's proprietary preview terms. For manual installation:
    verification and first launch may need internet access to retrieve that ticket;
    the local workspace workflow is offline after installation.
 
-Alternatively, install the same release from the official Homebrew tap:
+Alternatively, install from the official Homebrew tap, whose release channel is independent of npm:
 
 ```sh
 brew install usemont/tap/mont
@@ -59,6 +59,48 @@ The tap installs the same signed ARM64 binary package, not private Mont source,
 and declares FFmpeg as a separate Homebrew dependency.
 
 Never remove quarantine attributes, disable Gatekeeper, or bypass a security warning.
+
+### npm / npx
+
+**0.1.0-preview.17** supports Apple Silicon, macOS 14+, and Node.js 22+.
+Native registry checks passed with Node 22.14.0/npm 10.9.2 and Node
+24.7.0/npm 11.5.1. Windows, Linux and Intel macOS npm payloads are not published.
+
+```sh
+npx --yes --ignore-scripts @usemont/cli@0.1.0-preview.17 --version
+npx --yes --ignore-scripts @usemont/cli@0.1.0-preview.17 --help
+```
+
+Keep optional dependencies enabled: npm selects the exact native payload.
+No lifecycle scripts or install-time binary download hooks are needed. Version,
+help, project creation, the editor and companion commands work without FFmpeg;
+media import/rendering require separately installed FFmpeg/ffprobe and a supported
+native GPU backend. For example, install the codecs with `brew install ffmpeg`.
+
+For a global installation without replacing Homebrew's executable:
+
+```sh
+npm install --global --prefix "$HOME/.local/mont-npm" --ignore-scripts @usemont/cli@0.1.0-preview.17
+"$HOME/.local/mont-npm/bin/mont" --version
+```
+
+For an exact project dependency, commit both `package.json` and its lockfile:
+
+```sh
+npm install --save-dev --save-exact --ignore-scripts @usemont/cli@0.1.0-preview.17
+npm exec --offline -- mont --version
+```
+
+To select the accepted preview channel instead of an immutable version:
+
+```sh
+npx --yes --ignore-scripts @usemont/cli@preview --version
+```
+
+`preview` currently selects `0.1.0-preview.17`. npm automatically assigned this
+first prerelease to `latest`; the owner approved retaining that bootstrap
+assignment until the first accepted stable release. Future previews use `preview`.
+Exact project dependencies and their lockfiles remain pinned after channel changes.
 
 ## Linux
 
@@ -132,33 +174,32 @@ Extract into a new directory only after verification. Keep the complete package,
 
 Use the installer that owns the installation: Homebrew uses `brew update && brew upgrade usemont/tap/mont`; APT uses the signed-channel update commands above. Manual archives require downloading and verifying a new release. Mont does not provide a self-update command.
 
-**npm/npx distribution is not published yet.** Its update contract is:
-
-The npm target set is Apple Silicon macOS 14+, Windows x64, and Linux x64/ARM64
-with glibc 2.36+ (Debian 12 baseline; not Alpine/musl). Node.js 22+ is required.
-Native Windows and Linux npm acceptance is a release gate, not an availability
-claim. Install optional dependencies: they contain the matching native payload.
+**npm/npx is published for Apple Silicon macOS 14+ only**, with Node.js 22+.
+Windows x64 and Linux x64/ARM64 with glibc 2.36+ (Debian 12 baseline) remain
+planned npm targets, not published availability. Intel macOS and Alpine/musl
+are not supported. Native Windows and Linux npm acceptance remains a release gate.
+Install optional dependencies: they contain the matching native payload.
 Installation uses no lifecycle scripts or binary downloads outside npm.
 
 Version/help, project creation, and the editor do not require FFmpeg. Media
 commands currently require external `ffmpeg` and `ffprobe`; npm neither bundles
 nor installs codecs, GPU drivers, or hardware-acceleration support.
-Linux also needs the OpenSSL 3 and C++ runtimes. Rendering requires a Vulkan
-loader and driver; Mesa's software driver supports CPU-only machines. Unlike
-APT, npm does not resolve these OS dependencies.
+Future Linux npm payloads also need the OpenSSL 3 and C++ runtimes. Rendering
+requires a Vulkan loader and driver; Mesa's software driver supports CPU-only
+machines. Unlike APT, npm does not resolve these OS dependencies.
 
 | Installation | Version selection / update |
 | --- | --- |
 | One-off npx | `npx @usemont/cli@preview --version` selects the published preview channel; replace `preview` with an exact version for reproducibility. |
-| Global npm | `npm install -g @usemont/cli@preview` updates that global installation. |
+| Global npm | `npm install -g --prefix "$HOME/.local/mont-npm" @usemont/cli@preview` updates that scoped global installation. |
 | Project dependency | Update the explicit dependency and commit its lockfile; use `npm ci` in CI. |
 
-Preview releases use `preview`; `latest` is reserved for accepted stable releases. Bare `npx @usemont/cli` can use a project-local dependency; it is not a guarantee of the newest release. Do not clear npm's cache as an update procedure. npm does not install Mont's external FFmpeg/ffprobe dependency.
+Preview releases use `preview`; `latest` is reserved for accepted stable releases apart from the documented first-publication bootstrap exception above. Bare `npx @usemont/cli` can use a project-local dependency; it is not a guarantee of the newest release. Do not clear npm's cache as an update procedure. npm does not install Mont's external FFmpeg/ffprobe dependency.
 
 Installations remain independent. Plain `mont` follows shell command resolution; inspect `type -a mont` on POSIX or `Get-Command mont -All` in PowerShell, then run `mont --version`. The npm launcher selects its own exact-version platform payload, never another `mont` on `PATH`; a missing payload is an error, not a fallback.
 If global npm and Homebrew share a `bin` directory, do not use npm `--force` to
 replace Homebrew's `mont` link. Use npx or a separate npm prefix instead.
 
-Updating one installation must not uninstall or overwrite another installer's package. The existing optional `mont mcp install` integration is separate: it refreshes the shared, stable user-owned MCP launcher; manual archive and APT users run it explicitly after an upgrade. Homebrew's post-install step provisions it automatically.
+Updating one installation must not uninstall or overwrite another installer's package. The existing optional `mont mcp install` integration is separate: it refreshes the shared, stable user-owned MCP launcher; manual archive and APT users run it explicitly after an upgrade. Homebrew's post-install step provisions it automatically. An npm upgrade alone does not refresh it.
 
 An npm/npx rollback selects a previously published exact version. Homebrew rollback requires an available versioned formula or a verified older archive; there is no promised generic downgrade command. Moving a channel tag does not update pinned versions or running processes, and binary rollback does not guarantee an older binary can open a newer project format.
